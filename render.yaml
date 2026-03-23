@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: hiresense-backend
+    env: docker
+    plan: free
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hiresense-db
+          property: connectionString
+
+databases:
+  - name: hiresense-db
+    plan: free
