@@ -1,3 +1,4 @@
+from app.agents.utils import company_from_url
 import httpx
 import os
 import asyncio
@@ -11,7 +12,7 @@ async def linkedin_jobs(company_url: str):
     Extract company name from URL → scrape jobs
     """
 
-    company = company_url.split("/")[-1]
+    company = company_from_url(company_url)
 
     async with httpx.AsyncClient(timeout=60) as client:
         run = await client.post(
@@ -19,7 +20,6 @@ async def linkedin_jobs(company_url: str):
             json={
                 "keywords": company,
                 "maxItems": 20,
-                "location": "India"
             }
         )
 

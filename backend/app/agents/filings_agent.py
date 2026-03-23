@@ -1,3 +1,4 @@
+from app.agents.utils import company_from_url
 import httpx
 import os
 
@@ -5,7 +6,7 @@ SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 
 async def get_filings(company_url: str):
-    company = company_url.split("/")[-1]
+    company = company_from_url(company_url)
 
     async with httpx.AsyncClient() as client:
 
