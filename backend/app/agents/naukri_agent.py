@@ -1,14 +1,15 @@
+from app.agents.utils import company_from_url
 import httpx
 import os
 
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
 async def naukri_jobs(company_url: str):
-    company = company_url.split("/")[-1]
+    company = company_from_url(company_url)
 
     params = {
         "engine": "google_jobs",
-        "q": f"{company} jobs India",
+        "q": f"{company} jobs",
         "api_key": SERPAPI_KEY
     }
 
