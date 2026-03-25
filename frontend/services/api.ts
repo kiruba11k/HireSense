@@ -10,6 +10,7 @@ export type LinkedInSearchPayload = {
   advanced_title_filter?: string;
   location_filter?: string;
   organization_filter?: string;
+  organization_slug_filter?: string;
   description_filter?: string;
   type_filter?: string;
   remote?: boolean;
@@ -20,6 +21,13 @@ export type LinkedInSearchPayload = {
   ai_experience_level_filter?: string;
   ai_taxonomies_a_filter?: string;
   ai_has_salary?: boolean;
+  date_filter?: string;
+  order?: string;
+  external_apply_url?: boolean;
+  directapply?: boolean;
+  employees_lte?: number;
+  employees_gte?: number;
+  agency?: boolean;
   description_type?: "text" | "html";
   extra_query_params?: Record<string, string | number | boolean>;
 };
