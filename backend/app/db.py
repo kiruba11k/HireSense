@@ -1,13 +1,18 @@
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from app.config import settings
+import os
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# 🔥 IMPORTANT: SSL for Render external DB
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10
+    DATABASE_URL,
+    connect_args={"sslmode": "require"},
+    pool_pre_ping=True
 )
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False)
+SessionLocal = sessionmaker(bind=engine)
+
+# ✅ THIS IS THE MISSING THING
 Base = declarative_base()
