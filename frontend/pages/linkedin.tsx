@@ -1,4 +1,4 @@
-import { CSSProperties, FormEvent, useMemo, useState } from "react";
+import { CSSProperties, FormEvent, ReactNode, useMemo, useState } from "react";
 import Head from "next/head";
 import { LinkedInSearchPayload, LinkedInWindow, searchLinkedInJobs } from "../services/api";
 
@@ -15,10 +15,20 @@ type JobCard = {
 const defaultBackend = "https://hiresense-backend-75hd.onrender.com";
 
 const windows: Array<{ label: string; value: LinkedInWindow }> = [
-  { label: "Last 24 Hours", value: "24h" },
-  { label: "Last 7 Days", value: "7d" },
-  { label: "Last 6 Months", value: "6m" },
+  { label: "Past 24 hours", value: "24h" },
+  { label: "Past week", value: "7d" },
+  { label: "Past 6 months", value: "6m" },
 ];
+
+const sortOptions = [
+  { label: "Most recent", value: "desc" },
+  { label: "Least recent", value: "asc" },
+] as const;
+
+const workplaceOptions = ["On-site", "Hybrid", "Remote"];
+const experienceOptions = ["Internship", "Entry level", "Associate", "Mid-Senior", "Director", "Executive"];
+const jobTypeOptions = ["Full-time", "Part-time", "Contract", "Temporary", "Internship"];
+const seniorityOptions = ["Entry level", "Associate", "Mid-Senior level", "Director", "Executive"];
 
 const parseJobs = (payload: any): JobCard[] => {
   const raw = payload?.data;
@@ -44,152 +54,110 @@ const parseJobs = (payload: any): JobCard[] => {
 const normalize = (value: string) => value.trim() || undefined;
 const normalizeNumber = (value: string) => (value.trim() === "" ? undefined : Number(value));
 
+const mapWindowToLinkedInTpr = (value: LinkedInWindow) => {
+  if (value === "24h") return "r86400";
+  if (value === "7d") return "r604800";
+  return "r15552000";
+};
+
+const boolToLinkedIn = (value: boolean | undefined, token: string) => (value ? token : "");
+
+const buildLinkedInJobSearchUrl = (payload: LinkedInSearchPayload) => {
+  const keywords = [payload.title_filter, payload.description_filter, payload.organization_filter].filter(Boolean).join(" ");
+  const params = new URLSearchParams();
+
+  if (keywords) params.set("keywords", keywords);
+  if (payload.location_filter) params.set("location", payload.location_filter);
+  if (payload.window) params.set("f_TPR", mapWindowToLinkedInTpr(payload.window));
+  if (payload.remote) params.set("f_WT", "2");
+  if (payload.type_filter) params.set("f_JT", payload.type_filter);
+  if (payload.seniority_filter) params.set("f_E", payload.seniority_filter);
+  if (payload.industry_filter) params.set("f_I", payload.industry_filter);
+
+  const easyApplyToken = boolToLinkedIn(payload.directapply, "2");
+  if (easyApplyToken) params.set("f_AL", easyApplyToken);
+
+  const salaryToken = boolToLinkedIn(payload.ai_has_salary, "true");
+  if (salaryToken) params.set("salary", salaryToken);
+
+  params.set("sortBy", payload.order === "asc" ? "R" : "DD");
+  params.set("start", String(payload.offset || 0));
+
+  return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
+};
+
 export default function LinkedinPage() {
   const [backendUrl, setBackendUrl] = useState(process.env.NEXT_PUBLIC_API_URL || defaultBackend);
   const [windowFilter, setWindowFilter] = useState<LinkedInWindow>("24h");
-  const [limit, setLimit] = useState(100);
+  const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
 
   const [titleFilter, setTitleFilter] = useState("");
-  const [advancedTitleFilter, setAdvancedTitleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-  const [descriptionFilter, setDescriptionFilter] = useState("");
   const [organizationFilter, setOrganizationFilter] = useState("");
-  const [organizationSlugFilter, setOrganizationSlugFilter] = useState("");
-  const [advancedOrganizationFilter, setAdvancedOrganizationFilter] = useState("");
-  const [organizationDescriptionFilter, setOrganizationDescriptionFilter] = useState("");
-  const [organizationSpecialtiesFilter, setOrganizationSpecialtiesFilter] = useState("");
-
+  const [descriptionFilter, setDescriptionFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [industryFilter, setIndustryFilter] = useState("");
   const [seniorityFilter, setSeniorityFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [order, setOrder] = useState<"desc" | "asc">("desc");
-  const [descriptionType, setDescriptionType] = useState<"text" | "html" | "">("text");
+  const [industryFilter, setIndustryFilter] = useState("");
 
-  const [aiWorkArrangementFilter, setAiWorkArrangementFilter] = useState("");
-  const [aiExperienceLevelFilter, setAiExperienceLevelFilter] = useState("");
-  const [aiTaxonomiesAFilter, setAiTaxonomiesAFilter] = useState("");
-  const [aiTaxonomiesAPrimaryFilter, setAiTaxonomiesAPrimaryFilter] = useState("");
-  const [aiTaxonomiesAExclusionFilter, setAiTaxonomiesAExclusionFilter] = useState("");
+  const [remoteOnly, setRemoteOnly] = useState(false);
+  const [directApply, setDirectApply] = useState(false);
+  const [showSalary, setShowSalary] = useState(false);
 
   const [employeesGte, setEmployeesGte] = useState("");
   const [employeesLte, setEmployeesLte] = useState("");
-
-  const [remoteOnly, setRemoteOnly] = useState(false);
-  const [remoteOnlyEnabled, setRemoteOnlyEnabled] = useState(false);
-  const [agency, setAgency] = useState(false);
-  const [agencyEnabled, setAgencyEnabled] = useState(false);
-  const [includeAi, setIncludeAi] = useState(false);
-  const [showSalary, setShowSalary] = useState(false);
-  const [externalApplyUrl, setExternalApplyUrl] = useState(false);
-  const [externalApplyUrlEnabled, setExternalApplyUrlEnabled] = useState(false);
-  const [directApply, setDirectApply] = useState(false);
-  const [directApplyEnabled, setDirectApplyEnabled] = useState(false);
-  const [excludeAtsDuplicate, setExcludeAtsDuplicate] = useState(false);
-  const [excludeAtsDuplicateEnabled, setExcludeAtsDuplicateEnabled] = useState(false);
-  const [aiVisaSponsorshipFilter, setAiVisaSponsorshipFilter] = useState(false);
-  const [aiVisaSponsorshipEnabled, setAiVisaSponsorshipEnabled] = useState(false);
+  const [order, setOrder] = useState<"desc" | "asc">("desc");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<JobCard[]>([]);
   const [lastPath, setLastPath] = useState("");
+  const [queryUrl, setQueryUrl] = useState("");
 
-  const payloadPreview = useMemo<LinkedInSearchPayload>(() => {
-    const extraQueryParams: NonNullable<LinkedInSearchPayload["extra_query_params"]> = {};
-
-    const mappedExtras = {
-      organization_description_filter: normalize(organizationDescriptionFilter),
-      organization_specialties_filter: normalize(organizationSpecialtiesFilter),
-      advanced_organization_filter: normalize(advancedOrganizationFilter),
-      ai_taxonomies_a_primary_filter: normalize(aiTaxonomiesAPrimaryFilter),
-      ai_taxonomies_a_exclusion_filter: normalize(aiTaxonomiesAExclusionFilter),
-      exclude_ats_duplicate: excludeAtsDuplicateEnabled ? excludeAtsDuplicate : undefined,
-      ai_visa_sponsorship_filter: aiVisaSponsorshipEnabled ? aiVisaSponsorshipFilter : undefined,
-    };
-
-    Object.entries(mappedExtras).forEach(([key, value]) => {
-      if (value !== undefined) {
-        extraQueryParams[key] = value;
-      }
-    });
-
-    return {
+  const payloadPreview = useMemo<LinkedInSearchPayload>(
+    () => ({
       window: windowFilter,
       limit,
       offset,
       title_filter: normalize(titleFilter),
-      advanced_title_filter: normalize(advancedTitleFilter),
       location_filter: normalize(locationFilter),
-      description_filter: normalize(descriptionFilter),
       organization_filter: normalize(organizationFilter),
-      organization_slug_filter: normalize(organizationSlugFilter),
+      description_filter: normalize(descriptionFilter),
       type_filter: normalize(typeFilter),
-      remote: remoteOnlyEnabled ? remoteOnly : undefined,
-      agency: agencyEnabled ? agency : undefined,
       seniority_filter: normalize(seniorityFilter),
       industry_filter: normalize(industryFilter),
-      include_ai: includeAi || undefined,
-      ai_work_arrangement_filter: normalize(aiWorkArrangementFilter),
-      ai_experience_level_filter: normalize(aiExperienceLevelFilter),
-      ai_taxonomies_a_filter: normalize(aiTaxonomiesAFilter),
+      remote: remoteOnly || undefined,
+      directapply: directApply || undefined,
       ai_has_salary: showSalary || undefined,
-      date_filter: normalize(dateFilter),
-      order: order === "asc" ? "asc" : undefined,
-      description_type: normalize(descriptionType) as "text" | "html" | undefined,
-      external_apply_url: externalApplyUrlEnabled ? externalApplyUrl : undefined,
-      directapply: directApplyEnabled ? directApply : undefined,
       employees_gte: normalizeNumber(employeesGte),
       employees_lte: normalizeNumber(employeesLte),
-      extra_query_params: Object.keys(extraQueryParams).length ? extraQueryParams : undefined,
-    };
-  }, [
-    windowFilter,
-    limit,
-    offset,
-    titleFilter,
-    advancedTitleFilter,
-    locationFilter,
-    descriptionFilter,
-    organizationFilter,
-    organizationSlugFilter,
-    typeFilter,
-    remoteOnlyEnabled,
-    remoteOnly,
-    agencyEnabled,
-    agency,
-    seniorityFilter,
-    industryFilter,
-    includeAi,
-    aiWorkArrangementFilter,
-    aiExperienceLevelFilter,
-    aiTaxonomiesAFilter,
-    showSalary,
-    dateFilter,
-    order,
-    descriptionType,
-    externalApplyUrlEnabled,
-    externalApplyUrl,
-    directApplyEnabled,
-    directApply,
-    employeesGte,
-    employeesLte,
-    organizationDescriptionFilter,
-    organizationSpecialtiesFilter,
-    advancedOrganizationFilter,
-    aiTaxonomiesAPrimaryFilter,
-    aiTaxonomiesAExclusionFilter,
-    excludeAtsDuplicate,
-    excludeAtsDuplicateEnabled,
-    aiVisaSponsorshipFilter,
-    aiVisaSponsorshipEnabled,
-  ]);
+      order: order === "asc" ? "asc" : undefined,
+    }),
+    [
+      windowFilter,
+      limit,
+      offset,
+      titleFilter,
+      locationFilter,
+      organizationFilter,
+      descriptionFilter,
+      typeFilter,
+      seniorityFilter,
+      industryFilter,
+      remoteOnly,
+      directApply,
+      showSalary,
+      employeesGte,
+      employeesLte,
+      order,
+    ]
+  );
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setQueryUrl(buildLinkedInJobSearchUrl(payloadPreview));
 
     try {
       const response = await searchLinkedInJobs(payloadPreview, backendUrl);
@@ -205,134 +173,158 @@ export default function LinkedinPage() {
   return (
     <>
       <Head>
-        <title>LinkedIn Job Scraper | HireSense</title>
+        <title>LinkedIn Job Search Dashboard | HireSense</title>
       </Head>
-      <main style={pageStyle}>
-        <section style={containerStyle}>
-          <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>LinkedIn Job Scraper</h1>
-          <p style={{ color: "#94a3b8", marginBottom: "1.5rem" }}>
-            Full query-parameter UI with standard filters, advanced search syntax, and AI beta fields.
-          </p>
+
+      <main style={shellStyle}>
+        <aside style={sidebarStyle}>
+          <div style={brandStyle}>
+            <p style={brandBadgeStyle}>HireSense</p>
+            <h1 style={{ margin: 0, fontSize: "1.25rem" }}>LinkedIn Scout</h1>
+          </div>
+
+          <div style={menuGroupStyle}>
+            {[
+              "Search Builder",
+              "Saved Filters",
+              "Campaigns",
+              "Talent Pipelines",
+              "Exports",
+            ].map((item, idx) => (
+              <button key={item} type="button" style={{ ...menuBtnStyle, ...(idx === 0 ? menuBtnActiveStyle : {}) }}>
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div style={sidebarNoteStyle}>
+            <strong>Tip</strong>
+            <p style={{ margin: "8px 0 0", color: "#cbd5e1", fontSize: "0.88rem" }}>
+              Use role keywords + location + time window for best relevance and less noisy results.
+            </p>
+          </div>
+        </aside>
+
+        <section style={contentStyle}>
+          <header style={navbarStyle}>
+            <div>
+              <p style={{ margin: 0, color: "#93c5fd", fontWeight: 600 }}>Recruiting Dashboard</p>
+              <h2 style={{ margin: "4px 0 0", fontSize: "1.1rem" }}>LinkedIn Job Search Query Builder</h2>
+            </div>
+            <div style={navActionsStyle}>
+              <button type="button" style={navBtnStyle}>Save search</button>
+              <button type="button" style={navBtnStyle}>Export filters</button>
+            </div>
+          </header>
+
+          <div style={kpiGridStyle}>
+            <KpiCard label="Fetched Jobs" value={String(jobs.length)} />
+            <KpiCard label="Current Limit" value={String(limit)} />
+            <KpiCard label="Offset" value={String(offset)} />
+            <KpiCard label="Date Window" value={windows.find((w) => w.value === windowFilter)?.label || "-"} />
+          </div>
 
           <form onSubmit={onSubmit} style={panelStyle}>
-            <h2 style={sectionTitle}>Connection & Pagination</h2>
+            <h3 style={sectionTitle}>Core LinkedIn search filters</h3>
             <div style={gridStyle}>
-              <label>
-                Backend URL
-                <input value={backendUrl} onChange={(e) => setBackendUrl(e.target.value)} style={inputStyle} />
-              </label>
-              <label>
-                Time Window
+              <Field label="Role keywords"><input value={titleFilter} onChange={(e) => setTitleFilter(e.target.value)} style={inputStyle} placeholder="Product Manager, Data Engineer" /></Field>
+              <Field label="Location"><input value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} style={inputStyle} placeholder="United States, Bengaluru, Remote" /></Field>
+              <Field label="Company"><input value={organizationFilter} onChange={(e) => setOrganizationFilter(e.target.value)} style={inputStyle} placeholder="Google, Stripe" /></Field>
+              <Field label="Description keywords"><input value={descriptionFilter} onChange={(e) => setDescriptionFilter(e.target.value)} style={inputStyle} placeholder="NLP, GTM, B2B SaaS" /></Field>
+
+              <Field label="Time window">
                 <select value={windowFilter} onChange={(e) => setWindowFilter(e.target.value as LinkedInWindow)} style={inputStyle}>
                   {windows.map((w) => (
-                    <option key={w.value} value={w.value}>
-                      {w.label}
-                    </option>
+                    <option key={w.value} value={w.value}>{w.label}</option>
                   ))}
                 </select>
-              </label>
-              <label>
-                Limit (10-100)
-                <input type="number" min={10} max={100} value={limit} onChange={(e) => setLimit(Number(e.target.value || 10))} style={inputStyle} />
-              </label>
-              <label>
-                Offset
-                <input type="number" min={0} value={offset} onChange={(e) => setOffset(Number(e.target.value || 0))} style={inputStyle} />
-                <small style={hintStyle}>Use 0, 100, 200... to paginate in batches of 100.</small>
-              </label>
-            </div>
+              </Field>
 
-            <h2 style={sectionTitle}>Text Filters</h2>
-            <div style={gridStyle}>
-              <label>Title Filter<input value={titleFilter} onChange={(e) => setTitleFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Advanced Title Filter<input value={advancedTitleFilter} onChange={(e) => setAdvancedTitleFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Location Filter<input value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Description Filter<input value={descriptionFilter} onChange={(e) => setDescriptionFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Organization Filter<input value={organizationFilter} onChange={(e) => setOrganizationFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Organization Slug Filter<input value={organizationSlugFilter} onChange={(e) => setOrganizationSlugFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Advanced Organization Filter<input value={advancedOrganizationFilter} onChange={(e) => setAdvancedOrganizationFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Org Description Filter<input value={organizationDescriptionFilter} onChange={(e) => setOrganizationDescriptionFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Org Specialties Filter<input value={organizationSpecialtiesFilter} onChange={(e) => setOrganizationSpecialtiesFilter(e.target.value)} style={inputStyle} /></label>
-            </div>
-
-            <h2 style={sectionTitle}>Structured Filters</h2>
-            <div style={gridStyle}>
-              <label>Type Filter<input value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Industry Filter<input value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Seniority Filter<input value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={inputStyle} /></label>
-              <label>Date Filter (UTC)<input placeholder="2026-01-01 or 2026-01-01T14:00:00" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={inputStyle} /></label>
-              <label>
-                Order
+              <Field label="Sort order">
                 <select value={order} onChange={(e) => setOrder(e.target.value as "desc" | "asc")} style={inputStyle}>
-                  <option value="desc">Date Desc (default)</option>
-                  <option value="asc">Date Asc</option>
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
-              </label>
-              <label>
-                Description Type
-                <select value={descriptionType} onChange={(e) => setDescriptionType(e.target.value as "text" | "html" | "")} style={inputStyle}>
-                  <option value="text">text</option>
-                  <option value="html">html</option>
-                  <option value="">empty (omit descriptions)</option>
+              </Field>
+
+              <Field label="Job type">
+                <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={inputStyle}>
+                  <option value="">Any</option>
+                  {jobTypeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
                 </select>
-              </label>
-              <label>Employees GTE<input type="number" min={0} value={employeesGte} onChange={(e) => setEmployeesGte(e.target.value)} style={inputStyle} /></label>
-              <label>Employees LTE<input type="number" min={0} value={employeesLte} onChange={(e) => setEmployeesLte(e.target.value)} style={inputStyle} /></label>
+              </Field>
+
+              <Field label="Seniority">
+                <select value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={inputStyle}>
+                  <option value="">Any</option>
+                  {seniorityOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Industry"><input value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} style={inputStyle} placeholder="Fintech, AI, Healthcare" /></Field>
+              <Field label="Backend URL"><input value={backendUrl} onChange={(e) => setBackendUrl(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Limit"><input type="number" min={10} max={100} value={limit} onChange={(e) => setLimit(Number(e.target.value || 10))} style={inputStyle} /></Field>
+              <Field label="Offset"><input type="number" min={0} value={offset} onChange={(e) => setOffset(Number(e.target.value || 0))} style={inputStyle} /></Field>
             </div>
 
-            <h2 style={sectionTitle}>AI Filters (Beta)</h2>
+            <h3 style={sectionTitle}>Additional filters</h3>
             <div style={gridStyle}>
-              <label>AI Work Arrangement<input value={aiWorkArrangementFilter} onChange={(e) => setAiWorkArrangementFilter(e.target.value)} style={inputStyle} /></label>
-              <label>AI Experience Level<input value={aiExperienceLevelFilter} onChange={(e) => setAiExperienceLevelFilter(e.target.value)} style={inputStyle} /></label>
-              <label>AI Taxonomies<input value={aiTaxonomiesAFilter} onChange={(e) => setAiTaxonomiesAFilter(e.target.value)} style={inputStyle} /></label>
-              <label>AI Primary Taxonomies<input value={aiTaxonomiesAPrimaryFilter} onChange={(e) => setAiTaxonomiesAPrimaryFilter(e.target.value)} style={inputStyle} /></label>
-              <label>AI Taxonomies Exclusion<input value={aiTaxonomiesAExclusionFilter} onChange={(e) => setAiTaxonomiesAExclusionFilter(e.target.value)} style={inputStyle} /></label>
+              <Field label="Min employees"><input type="number" min={0} value={employeesGte} onChange={(e) => setEmployeesGte(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Max employees"><input type="number" min={0} value={employeesLte} onChange={(e) => setEmployeesLte(e.target.value)} style={inputStyle} /></Field>
+              <Field label="Workplace preset">
+                <select value={remoteOnly ? "Remote" : ""} onChange={(e) => setRemoteOnly(e.target.value === "Remote")} style={inputStyle}>
+                  <option value="">Any</option>
+                  {workplaceOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Experience preset">
+                <select value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={inputStyle}>
+                  <option value="">Any</option>
+                  {experienceOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </Field>
             </div>
 
-            <h2 style={sectionTitle}>Boolean Flags</h2>
-            <div style={flagGridStyle}>
-              <TriState label="Remote" enabled={remoteOnlyEnabled} value={remoteOnly} setEnabled={setRemoteOnlyEnabled} setValue={setRemoteOnly} />
-              <TriState label="Agency" enabled={agencyEnabled} value={agency} setEnabled={setAgencyEnabled} setValue={setAgency} />
-              <TriState label="External Apply URL" enabled={externalApplyUrlEnabled} value={externalApplyUrl} setEnabled={setExternalApplyUrlEnabled} setValue={setExternalApplyUrl} />
-              <TriState label="DirectApply" enabled={directApplyEnabled} value={directApply} setEnabled={setDirectApplyEnabled} setValue={setDirectApply} />
-              <TriState label="Exclude ATS Duplicate" enabled={excludeAtsDuplicateEnabled} value={excludeAtsDuplicate} setEnabled={setExcludeAtsDuplicateEnabled} setValue={setExcludeAtsDuplicate} />
-              <TriState label="AI Visa Sponsorship" enabled={aiVisaSponsorshipEnabled} value={aiVisaSponsorshipFilter} setEnabled={setAiVisaSponsorshipEnabled} setValue={setAiVisaSponsorshipFilter} />
+            <div style={checkboxRowStyle}>
+              <label><input type="checkbox" checked={remoteOnly} onChange={(e) => setRemoteOnly(e.target.checked)} /> Remote only</label>
+              <label><input type="checkbox" checked={directApply} onChange={(e) => setDirectApply(e.target.checked)} /> Easy apply only</label>
+              <label><input type="checkbox" checked={showSalary} onChange={(e) => setShowSalary(e.target.checked)} /> Salary listed</label>
             </div>
 
-            <div style={{ display: "flex", gap: 18, marginTop: 16, flexWrap: "wrap" }}>
-              <label>
-                <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} /> Include AI fields
-              </label>
-              <label>
-                <input type="checkbox" checked={showSalary} onChange={(e) => setShowSalary(e.target.checked)} /> AI has salary only
-              </label>
-            </div>
-
-            <button type="submit" disabled={loading} style={{ ...btnStyle, marginTop: 18 }}>
-              {loading ? "Fetching Jobs..." : "Search Jobs"}
-            </button>
+            <button type="submit" disabled={loading} style={submitStyle}>{loading ? "Building query & fetching..." : "Submit search"}</button>
           </form>
 
           <section style={panelStyle}>
-            <h2 style={{ marginBottom: 8 }}>Request Preview</h2>
-            <pre style={{ margin: 0, whiteSpace: "pre-wrap", color: "#93c5fd" }}>{JSON.stringify(payloadPreview, null, 2)}</pre>
-            {lastPath && (
-              <p style={{ marginTop: 12, color: "#cbd5e1" }}>
-                Backend Path: <code>{lastPath}</code>
-              </p>
-            )}
-            {error && <p style={{ color: "#fda4af" }}>{error}</p>}
+            <h3 style={sectionTitle}>Generated LinkedIn search query</h3>
+            <p style={{ margin: "0 0 10px", color: "#93c5fd", fontSize: "0.9rem" }}>
+              This URL is generated after submit using your selected filters.
+            </p>
+            <code style={queryStyle}>{queryUrl || "Submit a search to generate a LinkedIn query URL."}</code>
+
+            <h4 style={{ margin: "18px 0 8px" }}>Payload preview</h4>
+            <pre style={previewStyle}>{JSON.stringify(payloadPreview, null, 2)}</pre>
+            {lastPath && <p style={{ margin: "10px 0 0", color: "#cbd5e1" }}>Backend path: <code>{lastPath}</code></p>}
+            {error && <p style={{ color: "#fca5a5" }}>{error}</p>}
           </section>
 
-          <section style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+          <section style={resultsGridStyle}>
             {jobs.map((job) => (
-              <article key={job.id} style={{ background: "rgba(15,23,42,0.7)", border: "1px solid #334155", borderRadius: 14, padding: 14 }}>
-                <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>{job.title}</h3>
+              <article key={job.id} style={jobCardStyle}>
+                <h4 style={{ margin: "0 0 8px" }}>{job.title}</h4>
                 <p style={metaStyle}><strong>Company:</strong> {job.company}</p>
                 <p style={metaStyle}><strong>Location:</strong> {job.location}</p>
                 <p style={metaStyle}><strong>Posted:</strong> {job.date}</p>
                 {job.salary && <p style={metaStyle}><strong>Salary:</strong> {job.salary}</p>}
-                <a href={job.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>View Listing ↗</a>
+                <a href={job.url} target="_blank" rel="noreferrer" style={{ color: "#60a5fa" }}>Open job ↗</a>
               </article>
             ))}
           </section>
@@ -342,66 +334,142 @@ export default function LinkedinPage() {
   );
 }
 
-function TriState({
-  label,
-  enabled,
-  value,
-  setEnabled,
-  setValue,
-}: {
-  label: string;
-  enabled: boolean;
-  value: boolean;
-  setEnabled: (enabled: boolean) => void;
-  setValue: (value: boolean) => void;
-}) {
+function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <div style={triStateBoxStyle}>
-      <p style={{ margin: 0, fontWeight: 600 }}>{label}</p>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-        Send this parameter
-      </label>
-      <select disabled={!enabled} value={value ? "true" : "false"} onChange={(e) => setValue(e.target.value === "true")} style={inputStyle}>
-        <option value="true">true</option>
-        <option value="false">false</option>
-      </select>
-    </div>
+    <article style={kpiCardStyle}>
+      <p style={{ margin: 0, color: "#93c5fd", fontSize: "0.82rem" }}>{label}</p>
+      <strong style={{ fontSize: "1.15rem" }}>{value}</strong>
+    </article>
   );
 }
 
-const pageStyle: CSSProperties = {
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 6 }}>
+      <span style={{ color: "#bfdbfe", fontSize: "0.85rem" }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const shellStyle: CSSProperties = {
   minHeight: "100vh",
-  background: "linear-gradient(135deg, #0f172a, #111827)",
+  display: "grid",
+  gridTemplateColumns: "280px 1fr",
+  background: "radial-gradient(circle at top, #172554, #020617 60%)",
   color: "#e2e8f0",
-  padding: "2rem",
 };
 
-const containerStyle: CSSProperties = {
-  maxWidth: 1200,
-  margin: "0 auto",
+const sidebarStyle: CSSProperties = {
+  borderRight: "1px solid rgba(148, 163, 184, 0.25)",
+  padding: "22px 16px",
+  background: "rgba(2, 6, 23, 0.7)",
+  backdropFilter: "blur(8px)",
+};
+
+const brandStyle: CSSProperties = {
+  border: "1px solid #334155",
+  borderRadius: 12,
+  padding: 14,
+  marginBottom: 16,
+};
+
+const brandBadgeStyle: CSSProperties = {
+  margin: 0,
+  color: "#38bdf8",
+  fontSize: "0.78rem",
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+};
+
+const menuGroupStyle: CSSProperties = {
+  display: "grid",
+  gap: 8,
+};
+
+const menuBtnStyle: CSSProperties = {
+  textAlign: "left",
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  color: "#e2e8f0",
+  borderRadius: 10,
+  padding: "10px 12px",
+  cursor: "pointer",
+};
+
+const menuBtnActiveStyle: CSSProperties = {
+  borderColor: "#3b82f6",
+  background: "rgba(59, 130, 246, 0.16)",
+};
+
+const sidebarNoteStyle: CSSProperties = {
+  marginTop: 16,
+  border: "1px solid #1e293b",
+  borderRadius: 12,
+  background: "rgba(15, 23, 42, 0.75)",
+  padding: 12,
+};
+
+const contentStyle: CSSProperties = {
+  padding: "18px 22px",
+  overflow: "auto",
+};
+
+const navbarStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  border: "1px solid #334155",
+  borderRadius: 14,
+  padding: "14px 16px",
+  background: "rgba(15, 23, 42, 0.65)",
+  marginBottom: 14,
+};
+
+const navActionsStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+};
+
+const navBtnStyle: CSSProperties = {
+  background: "#0f172a",
+  color: "#e2e8f0",
+  border: "1px solid #334155",
+  borderRadius: 8,
+  padding: "8px 10px",
+  cursor: "pointer",
+};
+
+const kpiGridStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 10,
+  marginBottom: 14,
+};
+
+const kpiCardStyle: CSSProperties = {
+  border: "1px solid #334155",
+  borderRadius: 12,
+  background: "rgba(15, 23, 42, 0.72)",
+  padding: 12,
+  display: "grid",
+  gap: 8,
 };
 
 const panelStyle: CSSProperties = {
-  background: "rgba(15,23,42,0.6)",
   border: "1px solid #334155",
-  borderRadius: 16,
-  padding: 20,
-  marginBottom: 18,
+  borderRadius: 14,
+  padding: 16,
+  marginBottom: 14,
+  background: "rgba(15, 23, 42, 0.72)",
 };
 
 const sectionTitle: CSSProperties = {
-  margin: "16px 0 10px",
-  fontSize: "1.05rem",
+  margin: "0 0 10px",
+  fontSize: "1rem",
 };
 
 const gridStyle: CSSProperties = {
-  display: "grid",
-  gap: 12,
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-};
-
-const flagGridStyle: CSSProperties = {
   display: "grid",
   gap: 12,
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -409,40 +477,63 @@ const flagGridStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  marginTop: 6,
-  background: "#0b1220",
+  background: "#020617",
   color: "#e2e8f0",
   border: "1px solid #334155",
   borderRadius: 10,
   padding: "10px 12px",
 };
 
-const btnStyle: CSSProperties = {
-  background: "linear-gradient(90deg, #2563eb, #7c3aed)",
+const checkboxRowStyle: CSSProperties = {
+  display: "flex",
+  gap: 18,
+  margin: "14px 0",
+  flexWrap: "wrap",
+};
+
+const submitStyle: CSSProperties = {
   border: "none",
-  color: "white",
   borderRadius: 10,
   padding: "10px 16px",
+  background: "linear-gradient(90deg, #2563eb, #7c3aed)",
+  color: "white",
   cursor: "pointer",
+};
+
+const queryStyle: CSSProperties = {
+  display: "block",
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: 10,
+  padding: 10,
+  color: "#7dd3fc",
+  overflowWrap: "anywhere",
+};
+
+const previewStyle: CSSProperties = {
+  margin: 0,
+  color: "#bae6fd",
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: 10,
+  padding: 12,
+  whiteSpace: "pre-wrap",
+};
+
+const resultsGridStyle: CSSProperties = {
+  display: "grid",
+  gap: 10,
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+};
+
+const jobCardStyle: CSSProperties = {
+  border: "1px solid #334155",
+  borderRadius: 12,
+  background: "rgba(15, 23, 42, 0.85)",
+  padding: 12,
 };
 
 const metaStyle: CSSProperties = {
   margin: "4px 0",
   color: "#cbd5e1",
-};
-
-const hintStyle: CSSProperties = {
-  display: "block",
-  marginTop: 6,
-  color: "#94a3b8",
-  fontSize: "0.78rem",
-};
-
-const triStateBoxStyle: CSSProperties = {
-  background: "rgba(15,23,42,0.6)",
-  border: "1px solid #334155",
-  borderRadius: 12,
-  padding: 12,
-  display: "grid",
-  gap: 10,
 };
