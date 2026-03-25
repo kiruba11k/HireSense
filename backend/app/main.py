@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import FastAPI, Query, WebSocket
+from fastapi import FastAPI, HTTPException, Query, WebSocket
 
 from app.db import SessionLocal
 from app.models import Result, Task
-from app.schemas import Stage2Request
+from app.schemas import LinkedInSearchRequest, Stage2Request
+from app.services.linkedin_search_service import LinkedInSearchService, LinkedInWindow
 from app.services.pipeline import run_pipeline
 from app.services.websocket_manager import manager
 
@@ -41,6 +42,22 @@ async def status(task_id: str):
     db = SessionLocal()
     task = db.query(Task).filter(Task.id == task_id).first()
     return {"status": task.status if task else "not_found"}
+
+
+
+
+@app.post("/linkedin/jobs")
+async def linkedin_jobs_search(payload: LinkedInSearchRequest):
+    service = LinkedInSearchService()
+    try:
+        result = await asyncio.to_thread(service.search, LinkedInWindow(payload.window.value), payload.to_query_params())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if result["status_code"] >= 400:
+        raise HTTPException(status_code=result["status_code"], detail=result["data"])
+
+    return result
 
 
 @app.get("/results/{task_id}")

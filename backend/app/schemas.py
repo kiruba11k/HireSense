@@ -19,6 +19,47 @@ class IntentLevel(str, Enum):
     high = "High"
 
 
+class LinkedInWindow(str, Enum):
+    last_24h = "24h"
+    last_7d = "7d"
+    last_6m = "6m"
+
+
+class LinkedInSearchRequest(BaseModel):
+    window: LinkedInWindow = LinkedInWindow.last_24h
+    limit: int = Field(default=10, ge=10, le=100)
+    offset: int = Field(default=0, ge=0)
+    title_filter: str | None = None
+    advanced_title_filter: str | None = None
+    location_filter: str | None = None
+    description_filter: str | None = None
+    organization_filter: str | None = None
+    organization_slug_filter: str | None = None
+    type_filter: str | None = None
+    remote: bool | None = None
+    agency: bool | None = None
+    seniority_filter: str | None = None
+    industry_filter: str | None = None
+    include_ai: bool | None = None
+    ai_work_arrangement_filter: str | None = None
+    ai_experience_level_filter: str | None = None
+    ai_taxonomies_a_filter: str | None = None
+    ai_has_salary: bool | None = None
+    date_filter: str | None = None
+    order: str | None = None
+    description_type: str = "text"
+    external_apply_url: bool | None = None
+    directapply: bool | None = None
+    employees_lte: int | None = None
+    employees_gte: int | None = None
+    extra_query_params: dict[str, str | int | float | bool] = Field(default_factory=dict)
+
+    def to_query_params(self) -> dict[str, Any]:
+        data = self.model_dump(exclude={"window", "extra_query_params"}, exclude_none=True)
+        data.update(self.extra_query_params)
+        return data
+
+
 class JobSearchInput(BaseModel):
     keywords: list[str] = Field(default_factory=lambda: ["ERP", "SAP", "Cloud", "QA", "Data", "AI"])
     locations: list[str] = Field(default_factory=list)
