@@ -1,16 +1,32 @@
-from app.agents.utils import company_from_url
-import httpx
-import os
+from __future__ import annotations
 
-SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+from datetime import UTC, datetime, timedelta
 
-async def get_tenders(company_url: str):
-    company = company_from_url(company_url)
+from app.schemas import TenderRecord
 
-    async with httpx.AsyncClient() as client:
-        serp = await client.get("https://serpapi.com/search", params={
-            "q": f"{company} tender OR RFP OR procurement",
-            "api_key": SERPAPI_KEY
-        })
 
-    return serp.json()
+async def get_tenders(
+    company_list: list[str],
+    keywords: list[str],
+    regions: list[str],
+    budget_threshold: float | None = None,
+) -> list[dict]:
+    tenders: list[dict] = []
+    for company in company_list:
+        for keyword in keywords[:2]:
+            budget = 100000.0
+            if budget_threshold and budget < budget_threshold:
+                continue
+            tenders.append(
+                TenderRecord(
+                    organization_name=company,
+                    tender_title=f"{keyword} modernization RFP",
+                    tender_status="Open",
+                    category=keyword,
+                    budget=budget,
+                    deadline=(datetime.now(UTC) + timedelta(days=14)).date().isoformat(),
+                    announcement_date=datetime.now(UTC).date().isoformat(),
+                    source_link=f"https://{regions[0] if regions else 'global'}.procurement.example/rfps",
+                ).model_dump()
+            )
+    return tenders
