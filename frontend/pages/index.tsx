@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Script from "next/script";
+import { useRouter } from "next/router";
 import PremiumSidebar from "../components/PremiumSidebar";
 import TopNavbar from "../components/TopNavbar";
 import PipelineFlow from "../components/PipelineFlow";
@@ -28,6 +29,7 @@ declare global {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [activeView, setActiveView] = useState("overview");
   const [company, setCompany] = useState("stripe.com");
@@ -95,6 +97,12 @@ export default function Home() {
       donut.destroy();
     };
   }, [activeView]);
+
+  useEffect(() => {
+    if (activeView === "linkedin") {
+      router.push("/linkedin");
+    }
+  }, [activeView, router]);
 
   useEffect(() => {
     if (window.particlesJS) {
@@ -229,7 +237,7 @@ export default function Home() {
             </div>
           )}
 
-          {selectedAgent && (
+          {selectedAgent && selectedAgent.id !== "linkedin" && (
             <div className="glass-panel agent-workbench mt-3">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>{selectedAgent.name}</h3>
