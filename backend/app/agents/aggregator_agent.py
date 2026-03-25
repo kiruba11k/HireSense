@@ -1,99 +1,58 @@
-import httpx
-import os
-import json
+from __future__ import annotations
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+from app.schemas import AggregateRecord, IntentLevel
 
 
-async def aggregate_signals(jobs, tech, news, tenders=None, filings=None):
-    """
-    Hybrid intelligent aggregator:
-    - Extracts structured metrics
-    - Uses LLM for reasoning
-    - Produces dynamic score + explanation
-    """
+async def aggregate_signals(
+    company_name: str,
+    jobs: list[dict],
+    intent: list[dict],
+    tech: dict,
+    news: list[dict],
+    tenders: list[dict],
+    filings: list[dict],
+) -> dict:
+    # Weighted scoring (stage-2 specification)
+    hiring = min(100, len(jobs) * 6 + sum(i.get("intent_score", 0) for i in intent[:5]) // 5)
+    news_score = min(100, sum(item.get("event_impact_score", 0) for item in news) * 5)
+    tech_score = min(100, sum(len(v) for k, v in tech.items() if k.endswith("_stack") or k == "testing_tools") * 10)
+    filing_score = 70 if filings else 0
+    tender_score = min(100, len([t for t in tenders if t.get("tender_status") == "Open"]) * 25)
 
-    # 🔹 1. STRUCTURED FEATURES (deterministic layer)
-    features = {
-        "job_count": len(jobs),
-        "has_ai": "ai" in str(tech).lower(),
-        "has_cloud": "aws" in str(tech).lower() or "cloud" in str(tech).lower(),
-        "news_mentions": len(str(news)),
-        "tender_presence": bool(tenders),
-        "filings_presence": bool(filings)
-    }
+    total = int(hiring * 0.30 + news_score * 0.20 + tech_score * 0.15 + filing_score * 0.15 + tender_score * 0.20)
 
-    # 🔹 2. LLM REASONING
-    prompt = f"""
-    You are a SaaS intelligence scoring engine.
+    level = IntentLevel.low
+    tier = "Tier-3"
+    action = "Nurture sequence"
+    if total >= 70:
+        level = IntentLevel.high
+        tier = "Tier-1"
+        action = "Immediate AE outreach with tailored POV"
+    elif total >= 40:
+        level = IntentLevel.medium
+        tier = "Tier-2"
+        action = "SDR discovery + intent monitoring"
 
-    INPUT:
-    Jobs: {jobs[:5]}
-    Tech: {tech}
-    News: {news}
-    Tenders: {tenders}
-    Filings: {filings}
+    signals = []
+    if hiring >= 50:
+        signals.append("Strong hiring momentum")
+    if news_score >= 50:
+        signals.append("Business trigger events")
+    if tender_score >= 50:
+        signals.append("Active procurement cycle")
 
-    Structured Signals:
-    {features}
-
-    TASK:
-    1. Analyze company growth, hiring intent, tech maturity
-    2. Assign a score from 0 to 100
-    3. Classify:
-       - High Opportunity
-       - Medium Opportunity
-       - Low Opportunity
-
-    OUTPUT FORMAT (STRICT JSON):
-    {{
-        "score": number,
-        "classification": "...",
-        "reason": "...",
-        "signals": {{
-            "hiring_trend": "...",
-            "tech_strength": "...",
-            "market_activity": "..."
-        }}
-    }}
-    """
-
-    async with httpx.AsyncClient(timeout=60) as client:
-        res = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            json={
-                "model": "mixtral-8x7b-32768",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.3
-            }
-        )
-
-    content = res.json()["choices"][0]["message"]["content"]
-
-    # 🔹 3. SAFE PARSING (IMPORTANT)
-    try:
-        llm_output = json.loads(content)
-    except:
-        llm_output = {
-            "score": 50,
-            "classification": "Unknown",
-            "reason": content
-        }
-
-    # 🔹 4. FINAL HYBRID SCORE (CONTROLLED)
-    final_score = min(
-        100,
-        int(llm_output.get("score", 50)) +
-        features["job_count"] * 2 +
-        (10 if features["has_ai"] else 0)
-    )
-
-    return {
-        "final_score": final_score,
-        "llm_score": llm_output.get("score"),
-        "classification": llm_output.get("classification"),
-        "reason": llm_output.get("reason"),
-        "features": features,
-        "signals": llm_output.get("signals", {})
-    }
+    return AggregateRecord(
+        company_name=company_name,
+        intent=total,
+        intent_level=level,
+        top_signals=signals,
+        recommended_action=action,
+        priority_tier=tier,
+        signal_breakdown={
+            "hiring": hiring,
+            "news": news_score,
+            "tech_stack": tech_score,
+            "filings": filing_score,
+            "tenders": tender_score,
+        },
+    ).model_dump()

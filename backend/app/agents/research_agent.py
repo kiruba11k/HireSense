@@ -1,29 +1,29 @@
-import httpx
-import os
+from __future__ import annotations
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+from app.schemas import ResearchRecord
 
-async def deep_research(data: dict):
-    prompt = f"""
-    Analyze company signals:
 
-    {data}
+async def deep_research(company_name: str, all_agent_outputs: dict, time_context_days: int = 90) -> dict:
+    intents = all_agent_outputs.get("intent", [])
+    top_intent = intents[0] if intents else {}
+    triggers = []
 
-    Provide:
-    - Hiring trend
-    - Growth signals
-    - Tech maturity
-    - Risk factors
-    """
+    if all_agent_outputs.get("news"):
+        triggers.append("Recent business-impact events detected")
+    if all_agent_outputs.get("tenders"):
+        triggers.append("Open tenders suggest active budget cycles")
+    if all_agent_outputs.get("jobs"):
+        triggers.append("Hiring demand indicates execution readiness")
 
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            json={
-                "model": "mixtral-8x7b-32768",
-                "messages": [{"role": "user", "content": prompt}]
-            }
-        )
-
-    return res.json()["choices"][0]["message"]["content"]
+    return ResearchRecord(
+        company_name=company_name,
+        company_description=f"{company_name} appears to be executing transformation initiatives.",
+        key_triggers=triggers,
+        business_problem="Need to accelerate delivery while managing platform complexity and risk.",
+        intent_summary=(
+            f"Within the last {time_context_days} days, multiple signals indicate "
+            f"{(top_intent.get('intent_type') or 'Optimization')} intent."
+        ),
+        recommended_pitch="Offer rapid assessment + phased implementation package aligned to active initiatives.",
+        why_now="Concurrent hiring, trigger events, and procurement activity shorten buying cycles.",
+    ).model_dump()
