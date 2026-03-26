@@ -56,6 +56,21 @@ class LinkedInSearchService:
         except json.JSONDecodeError:
             parsed = {"raw": payload}
 
+        if response.status < 400 and isinstance(parsed, dict):
+            raw = parsed.get("raw")
+            if isinstance(raw, str) and "<title>404" in raw:
+                parsed = {
+                    "error": "RapidAPI returned an invalid LinkedIn page response (404).",
+                    "hint": "Use plain filter values (for example: location_filter=United States,United Kingdom) and avoid raw LinkedIn URLs or quoted OR expressions.",
+                    "raw": raw[:500],
+                }
+                return {
+                    "status_code": 502,
+                    "window": window.value,
+                    "path": path,
+                    "data": parsed,
+                }
+
         return {
             "status_code": response.status,
             "window": window.value,

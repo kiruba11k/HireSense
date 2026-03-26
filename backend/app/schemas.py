@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -54,11 +55,25 @@ class LinkedInSearchRequest(BaseModel):
     employees_gte: int | None = None
     extra_query_params: dict[str, str | int | float | bool] = Field(default_factory=dict)
 
+    @staticmethod
+    def _normalize_filter_expression(value: str) -> str:
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            return cleaned
+
+        if re.search(r"\s+OR\s+", cleaned, flags=re.IGNORECASE):
+            parts = re.split(r"\s+OR\s+", cleaned, flags=re.IGNORECASE)
+            return ",".join(item.strip().strip('"').strip("'") for item in parts if item.strip())
+
+        return cleaned.strip('"').strip("'")
+
     def to_query_params(self) -> dict[str, Any]:
         data = self.model_dump(exclude={"window", "extra_query_params"}, exclude_none=True)
         for key, value in list(data.items()):
             if isinstance(value, list):
                 data[key] = ",".join(str(item) for item in value if item not in (None, ""))
+            elif isinstance(value, str):
+                data[key] = self._normalize_filter_expression(value)
         data.update(self.extra_query_params)
         return data
 
