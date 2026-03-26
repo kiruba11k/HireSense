@@ -37,6 +37,7 @@ const jobTypeOptions = ["Full-time", "Part-time", "Contract", "Temporary", "Inte
 
 const FILTERS_KEY = "hiresense.linkedin.saved_filters";
 const FORM_KEY = "hiresense.linkedin.form_state";
+const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
 
 const parseJobs = (payload: any): JobCard[] => {
   const raw = payload?.data;
@@ -63,7 +64,6 @@ const normalize = (value: string) => value.trim() || undefined;
 const normalizeNumber = (value: string) => (value.trim() === "" ? undefined : Number(value));
 const normalizeArray = (values: string[]) => (values.length ? values : undefined);
 const splitCsv = (value: string | undefined) => value ? value.split(",").map((item) => item.trim()).filter(Boolean) : [];
-const splitInputValues = (value: string) => splitCsv(value);
 
 const mapWindowToLinkedInTpr = (value: LinkedInWindow) => {
   if (value === "24h") return "r86400";
@@ -110,14 +110,14 @@ export default function LinkedinPage() {
   const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
 
-  const [titleFilter, setTitleFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [organizationFilter, setOrganizationFilter] = useState("");
-  const [descriptionFilter, setDescriptionFilter] = useState("");
+  const [titleFilters, setTitleFilters] = useState<string[]>([]);
+  const [locationFilters, setLocationFilters] = useState<string[]>([]);
+  const [organizationFilters, setOrganizationFilters] = useState<string[]>([]);
+  const [descriptionFilters, setDescriptionFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [experienceLevels, setExperienceLevels] = useState<string[]>([]);
   const [workplaceFilters, setWorkplaceFilters] = useState<string[]>([]);
-  const [industryFilter, setIndustryFilter] = useState("");
+  const [industryFilters, setIndustryFilters] = useState<string[]>([]);
 
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [directApply, setDirectApply] = useState(false);
@@ -139,14 +139,14 @@ export default function LinkedinPage() {
       window: windowFilter,
       limit,
       offset,
-      title_filter: normalize(titleFilter),
-      location_filter: normalize(locationFilter),
-      organization_filter: normalize(organizationFilter),
-      description_filter: normalize(descriptionFilter),
+      title_filter: normalize(titleFilters.join(", ")),
+      location_filter: normalize(locationFilters.join(", ")),
+      organization_filter: normalize(organizationFilters.join(", ")),
+      description_filter: normalize(descriptionFilters.join(", ")),
       type_filter: normalizeArray(typeFilters),
       ai_experience_level_filter: normalizeArray(experienceLevels),
       ai_work_arrangement_filter: normalizeArray(workplaceFilters),
-      industry_filter: normalizeArray(splitInputValues(industryFilter)),
+      industry_filter: normalizeArray(industryFilters),
       remote: remoteOnly || workplaceFilters.includes("Remote") || undefined,
       directapply: directApply || undefined,
       ai_has_salary: showSalary || undefined,
@@ -158,14 +158,14 @@ export default function LinkedinPage() {
           window: windowFilter,
           limit,
           offset,
-          title_filter: normalize(titleFilter),
-          location_filter: normalize(locationFilter),
-          organization_filter: normalize(organizationFilter),
-          description_filter: normalize(descriptionFilter),
+          title_filter: normalize(titleFilters.join(", ")),
+          location_filter: normalize(locationFilters.join(", ")),
+          organization_filter: normalize(organizationFilters.join(", ")),
+          description_filter: normalize(descriptionFilters.join(", ")),
           type_filter: normalizeArray(typeFilters),
           ai_experience_level_filter: normalizeArray(experienceLevels),
           ai_work_arrangement_filter: normalizeArray(workplaceFilters),
-          industry_filter: normalizeArray(splitInputValues(industryFilter)),
+          industry_filter: normalizeArray(industryFilters),
           remote: remoteOnly || workplaceFilters.includes("Remote") || undefined,
           directapply: directApply || undefined,
           ai_has_salary: showSalary || undefined,
@@ -179,14 +179,14 @@ export default function LinkedinPage() {
       windowFilter,
       limit,
       offset,
-      titleFilter,
-      locationFilter,
-      organizationFilter,
-      descriptionFilter,
+      titleFilters,
+      locationFilters,
+      organizationFilters,
+      descriptionFilters,
       typeFilters,
       experienceLevels,
       workplaceFilters,
-      industryFilter,
+      industryFilters,
       remoteOnly,
       directApply,
       showSalary,
@@ -215,14 +215,14 @@ export default function LinkedinPage() {
         setWindowFilter(data.windowFilter || "24h");
         setLimit(data.limit || 50);
         setOffset(data.offset || 0);
-        setTitleFilter(data.titleFilter || "");
-        setLocationFilter(data.locationFilter || "");
-        setOrganizationFilter(data.organizationFilter || "");
-        setDescriptionFilter(data.descriptionFilter || "");
+        setTitleFilters(data.titleFilters || splitCsv(data.titleFilter));
+        setLocationFilters(data.locationFilters || splitCsv(data.locationFilter));
+        setOrganizationFilters(data.organizationFilters || splitCsv(data.organizationFilter));
+        setDescriptionFilters(data.descriptionFilters || splitCsv(data.descriptionFilter));
         setTypeFilters(data.typeFilters || splitCsv(data.typeFilter));
         setExperienceLevels(data.experienceLevels || splitCsv(data.aiExperienceLevelFilter || data.seniorityFilter));
         setWorkplaceFilters(data.workplaceFilters || splitCsv(data.aiWorkArrangementFilter));
-        setIndustryFilter(data.industryFilter || "");
+        setIndustryFilters(data.industryFilters || splitCsv(data.industryFilter));
         setRemoteOnly(Boolean(data.remoteOnly));
         setDirectApply(Boolean(data.directApply));
         setShowSalary(Boolean(data.showSalary));
@@ -243,14 +243,14 @@ export default function LinkedinPage() {
         windowFilter,
         limit,
         offset,
-        titleFilter,
-        locationFilter,
-        organizationFilter,
-        descriptionFilter,
+        titleFilters,
+        locationFilters,
+        organizationFilters,
+        descriptionFilters,
         typeFilters,
         experienceLevels,
         workplaceFilters,
-        industryFilter,
+        industryFilters,
         remoteOnly,
         directApply,
         showSalary,
@@ -259,10 +259,10 @@ export default function LinkedinPage() {
         order,
       })
     );
-  }, [windowFilter, limit, offset, titleFilter, locationFilter, organizationFilter, descriptionFilter, typeFilters, experienceLevels, workplaceFilters, industryFilter, remoteOnly, directApply, showSalary, employeesGte, employeesLte, order]);
+  }, [windowFilter, limit, offset, titleFilters, locationFilters, organizationFilters, descriptionFilters, typeFilters, experienceLevels, workplaceFilters, industryFilters, remoteOnly, directApply, showSalary, employeesGte, employeesLte, order]);
 
   const saveCurrentSearch = () => {
-    const name = `${titleFilter || "Search"} • ${new Date().toLocaleString()}`;
+    const name = `${titleFilters[0] || "Search"} • ${new Date().toLocaleString()}`;
     const item: SavedFilter = {
       id: String(Date.now()),
       name,
@@ -281,14 +281,14 @@ export default function LinkedinPage() {
     setWindowFilter(p.window || "24h");
     setLimit(p.limit || 50);
     setOffset(p.offset || 0);
-    setTitleFilter(p.title_filter || "");
-    setLocationFilter(p.location_filter || "");
-    setOrganizationFilter(p.organization_filter || "");
-    setDescriptionFilter(p.description_filter || "");
+    setTitleFilters(splitCsv(p.title_filter));
+    setLocationFilters(splitCsv(p.location_filter));
+    setOrganizationFilters(splitCsv(p.organization_filter));
+    setDescriptionFilters(splitCsv(p.description_filter));
     setTypeFilters(Array.isArray(p.type_filter) ? p.type_filter : splitCsv(p.type_filter));
     setExperienceLevels(Array.isArray(p.ai_experience_level_filter) ? p.ai_experience_level_filter : splitCsv(p.ai_experience_level_filter));
     setWorkplaceFilters(Array.isArray(p.ai_work_arrangement_filter) ? p.ai_work_arrangement_filter : splitCsv(p.ai_work_arrangement_filter));
-    setIndustryFilter(Array.isArray(p.industry_filter) ? p.industry_filter.join(", ") : (p.industry_filter || ""));
+    setIndustryFilters(Array.isArray(p.industry_filter) ? p.industry_filter : splitCsv(p.industry_filter));
     setRemoteOnly(Boolean(p.remote));
     setDirectApply(Boolean(p.directapply));
     setShowSalary(Boolean(p.ai_has_salary));
@@ -342,6 +342,22 @@ export default function LinkedinPage() {
     }
   };
 
+  const backToDashboard = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const persisted = window.sessionStorage.getItem(DASHBOARD_STATE_KEY);
+        const parsed = persisted ? JSON.parse(persisted) : {};
+        window.sessionStorage.setItem(
+          DASHBOARD_STATE_KEY,
+          JSON.stringify({ ...parsed, activeView: "overview" })
+        );
+      } catch {
+        window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ activeView: "overview" }));
+      }
+    }
+    router.push("/");
+  };
+
   return (
     <>
       <Head>
@@ -352,7 +368,7 @@ export default function LinkedinPage() {
         <section style={contentStyle}>
           <header style={navbarStyle}>
             <div>
-              <button type="button" style={backBtnStyle} onClick={() => router.push("/")}>← Back to dashboard</button>
+              <button type="button" style={backBtnStyle} onClick={backToDashboard}>← Back to main dashboard</button>
               <h2 style={{ margin: "8px 0 0", fontSize: "1.1rem" }}>LinkedIn Job Search Query Builder</h2>
             </div>
             <div style={navActionsStyle}>
@@ -381,10 +397,10 @@ export default function LinkedinPage() {
               <form onSubmit={onSearch} style={panelStyle}>
                 <h3 style={sectionTitle}>Core LinkedIn search filters</h3>
                 <div style={gridStyle}>
-                  <Field label="Role keywords"><input value={titleFilter} onChange={(e) => setTitleFilter(e.target.value)} style={inputStyle} placeholder="Product Manager, Data Engineer" /></Field>
-                  <Field label="Location"><input value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} style={inputStyle} placeholder="United States, Bengaluru, Remote" /></Field>
-                  <Field label="Company"><input value={organizationFilter} onChange={(e) => setOrganizationFilter(e.target.value)} style={inputStyle} placeholder="Google, Stripe" /></Field>
-                  <Field label="Description keywords"><input value={descriptionFilter} onChange={(e) => setDescriptionFilter(e.target.value)} style={inputStyle} placeholder="NLP, GTM, B2B SaaS" /></Field>
+                  <Field label="Role keywords"><MultiValueInput values={titleFilters} onChange={setTitleFilters} placeholder="Add role and press Enter (e.g., Product Manager)" /></Field>
+                  <Field label="Location"><MultiValueInput values={locationFilters} onChange={setLocationFilters} placeholder="Add location and press Enter (e.g., United States)" /></Field>
+                  <Field label="Company"><MultiValueInput values={organizationFilters} onChange={setOrganizationFilters} placeholder="Add company and press Enter (e.g., Google)" /></Field>
+                  <Field label="Description keywords"><MultiValueInput values={descriptionFilters} onChange={setDescriptionFilters} placeholder="Add keyword and press Enter (e.g., GTM)" /></Field>
 
                   <Field label="Time window">
                     <select value={windowFilter} onChange={(e) => setWindowFilter(e.target.value as LinkedInWindow)} style={inputStyle}>
@@ -418,8 +434,14 @@ export default function LinkedinPage() {
                     </select>
                   </Field>
 
-                  <Field label="Industry"><input value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} style={inputStyle} placeholder="Fintech, AI, Healthcare (comma-separated)" /></Field>
-                  <Field label="Limit"><input type="number" min={10} max={100} value={limit} onChange={(e) => setLimit(Number(e.target.value || 10))} style={inputStyle} /></Field>
+                  <Field label="Industry"><MultiValueInput values={industryFilters} onChange={setIndustryFilters} placeholder="Add industry and press Enter (e.g., FinTech)" /></Field>
+                  <Field label="Limit">
+                    <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} style={inputStyle}>
+                      {[25, 50, 75, 100].map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </Field>
                   <Field label="Offset"><input type="number" min={0} value={offset} onChange={(e) => setOffset(Number(e.target.value || 0))} style={inputStyle} /></Field>
                 </div>
 
@@ -480,8 +502,8 @@ export default function LinkedinPage() {
               <h3 style={sectionTitle}>Campaigns</h3>
               <p style={metaStyle}>Active campaign is generated from your current filters and job results.</p>
               <ul>
-                <li>Campaign Name: {titleFilter || "General LinkedIn Search"}</li>
-                <li>Target Location: {locationFilter || "Any"}</li>
+                <li>Campaign Name: {titleFilters.join(", ") || "General LinkedIn Search"}</li>
+                <li>Target Location: {locationFilters.join(", ") || "Any"}</li>
                 <li>Current Reach: {jobs.length} jobs</li>
               </ul>
             </section>
@@ -545,6 +567,62 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function MultiValueInput({
+  values,
+  onChange,
+  placeholder,
+}: {
+  values: string[];
+  onChange: (values: string[]) => void;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const addValue = (raw: string) => {
+    const value = raw.trim();
+    if (!value || values.includes(value)) return;
+    onChange([...values, value]);
+  };
+
+  const removeValue = (value: string) => onChange(values.filter((item) => item !== value));
+
+  return (
+    <div style={chipInputWrapStyle}>
+      <div style={chipListStyle}>
+        {values.map((value) => (
+          <span key={value} style={chipStyle}>
+            {value}
+            <button type="button" style={chipCloseStyle} onClick={() => removeValue(value)} aria-label={`Remove ${value}`}>
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            addValue(draft.replace(/,$/, ""));
+            setDraft("");
+          }
+          if (e.key === "Backspace" && !draft && values.length) {
+            removeValue(values[values.length - 1]);
+          }
+        }}
+        onBlur={() => {
+          if (!draft.trim()) return;
+          addValue(draft);
+          setDraft("");
+        }}
+        style={chipInputStyle}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
 const shellStyle: CSSProperties = {
   minHeight: "100vh",
   background: "radial-gradient(circle at top, #172554, #020617 60%)",
@@ -552,7 +630,7 @@ const shellStyle: CSSProperties = {
 };
 
 const contentStyle: CSSProperties = {
-  padding: "18px 22px",
+  padding: "28px 24px 40px",
   maxWidth: 1200,
   margin: "0 auto",
 };
@@ -561,18 +639,20 @@ const navbarStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
   border: "1px solid #334155",
   borderRadius: 14,
-  padding: "14px 16px",
+  padding: "16px 18px",
   background: "rgba(15, 23, 42, 0.65)",
-  marginBottom: 14,
+  marginBottom: 18,
 };
 
 const menuRowStyle: CSSProperties = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
-  marginBottom: 14,
+  marginBottom: 18,
 };
 
 const tabBtnStyle: CSSProperties = {
@@ -618,8 +698,8 @@ const navBtnStyle: CSSProperties = {
 const kpiGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-  gap: 10,
-  marginBottom: 14,
+  gap: 12,
+  marginBottom: 18,
 };
 
 const kpiCardStyle: CSSProperties = {
@@ -634,8 +714,8 @@ const kpiCardStyle: CSSProperties = {
 const panelStyle: CSSProperties = {
   border: "1px solid #334155",
   borderRadius: 14,
-  padding: 16,
-  marginBottom: 14,
+  padding: 18,
+  marginBottom: 18,
   background: "rgba(15, 23, 42, 0.72)",
 };
 
@@ -646,15 +726,16 @@ const sectionTitle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: "grid",
-  gap: 12,
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 14,
+  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
 };
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  background: "#020617",
+  minHeight: 42,
+  background: "#0b1222",
   color: "#e2e8f0",
-  border: "1px solid #334155",
+  border: "1px solid #475569",
   borderRadius: 10,
   padding: "10px 12px",
 };
@@ -716,4 +797,51 @@ const savedRowStyle: CSSProperties = {
   borderRadius: 10,
   padding: 12,
   marginBottom: 10,
+};
+
+const chipInputWrapStyle: CSSProperties = {
+  width: "100%",
+  minHeight: 42,
+  background: "#0b1222",
+  color: "#e2e8f0",
+  border: "1px solid #475569",
+  borderRadius: 10,
+  padding: 8,
+  display: "grid",
+  gap: 8,
+};
+
+const chipListStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 6,
+};
+
+const chipStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "4px 8px",
+  borderRadius: 999,
+  background: "rgba(59, 130, 246, 0.2)",
+  color: "#bfdbfe",
+  fontSize: "0.8rem",
+};
+
+const chipCloseStyle: CSSProperties = {
+  border: "none",
+  background: "transparent",
+  color: "#93c5fd",
+  cursor: "pointer",
+  lineHeight: 1,
+  padding: 0,
+};
+
+const chipInputStyle: CSSProperties = {
+  border: "none",
+  outline: "none",
+  background: "transparent",
+  color: "#e2e8f0",
+  fontSize: "0.9rem",
+  width: "100%",
 };
