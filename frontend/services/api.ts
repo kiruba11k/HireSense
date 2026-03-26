@@ -1,5 +1,31 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
+const resolveApiBase = (fallbackBase?: string) => {
+  if (fallbackBase) return fallbackBase;
+  if (BASE) return BASE;
+  if (typeof window !== "undefined") return "http://localhost:8000";
+  return "http://backend:8000";
+};
+
+const parseApiResponse = async (res: Response) => {
+  const raw = await res.text();
+  const trimmed = raw.trim();
+  const contentType = res.headers.get("content-type")?.toLowerCase() || "";
+  const looksLikeHtml = trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html");
+
+  if (!trimmed) return { data: null, looksLikeHtml };
+
+  if (contentType.includes("application/json") || (!looksLikeHtml && (trimmed.startsWith("{") || trimmed.startsWith("[")))) {
+    try {
+      return { data: JSON.parse(trimmed), looksLikeHtml: false };
+    } catch {
+      // fall through to return raw text
+    }
+  }
+
+  return { data: raw, looksLikeHtml };
+};
+
 export type LinkedInWindow = "24h" | "7d" | "6m";
 
 export type LinkedInSearchPayload = {
@@ -33,19 +59,21 @@ export type LinkedInSearchPayload = {
 };
 
 export const startPipeline = async (companyUrl: string) => {
-  const res = await fetch(`${BASE}/run?company=${companyUrl}`, {
+  const apiBase = resolveApiBase();
+  const res = await fetch(`${apiBase}/run?company=${companyUrl}`, {
     method: "POST",
   });
   return res.json();
 };
 
 export const getResults = async (taskId: string) => {
-  const res = await fetch(`${BASE}/results/${taskId}`);
+  const apiBase = resolveApiBase();
+  const res = await fetch(`${apiBase}/results/${taskId}`);
   return res.json();
 };
 
 export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
-  const apiBase = fallbackBase || BASE;
+  const apiBase = resolveApiBase(fallbackBase);
   const res = await fetch(`${apiBase}/linkedin/jobs`, {
     method: "POST",
     headers: {
@@ -54,15 +82,28 @@ export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbac
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  const { data, looksLikeHtml } = await parseApiResponse(res);
   if (!res.ok) {
-    throw new Error(data.detail || "Failed to fetch jobs");
+    if (looksLikeHtml) {
+      throw new Error(
+        "Received HTML instead of JSON from /linkedin/jobs. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000)."
+      );
+    }
+    if (data && typeof data === "object" && "detail" in data) {
+      throw new Error(String((data as { detail: unknown }).detail));
+    }
+    throw new Error(typeof data === "string" && data ? data : "Failed to fetch jobs");
+  }
+  if (looksLikeHtml) {
+    throw new Error(
+      "Received HTML instead of JSON from /linkedin/jobs. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000)."
+    );
   }
   return data;
 };
 
 export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
-  const apiBase = fallbackBase || BASE;
+  const apiBase = resolveApiBase(fallbackBase);
   const res = await fetch(`${apiBase}/linkedin/jobs/csv`, {
     method: "POST",
     headers: {
