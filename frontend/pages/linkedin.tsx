@@ -1,6 +1,7 @@
 import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { motion } from "framer-motion";
 import { LinkedInSearchPayload, LinkedInWindow, exportLinkedInJobsCsv, searchLinkedInJobs } from "../services/api";
 
 type JobCard = {
@@ -365,8 +366,17 @@ export default function LinkedinPage() {
       </Head>
 
       <main style={shellStyle}>
+        <aside style={sidebarStyle}>
+          <h2 style={logoStyle}>HireSense</h2>
+          {["Dashboard", "Search", "Pipelines", "Campaigns", "Exports"].map((item) => (
+            <motion.button key={item} whileHover={{ scale: 1.04 }} style={sideItemStyle} type="button">
+              {item}
+            </motion.button>
+          ))}
+        </aside>
+
         <section style={contentStyle}>
-          <header style={navbarStyle}>
+          <motion.header style={navbarStyle} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div>
               <button type="button" style={backBtnStyle} onClick={backToDashboard}>← Back to main dashboard</button>
               <h2 style={{ margin: "8px 0 0", fontSize: "1.1rem" }}>LinkedIn Job Search Query Builder</h2>
@@ -375,13 +385,13 @@ export default function LinkedinPage() {
               <button type="button" style={navBtnStyle} onClick={saveCurrentSearch}>Save search</button>
               <button type="button" style={navBtnStyle} onClick={exportFilters}>Export filters</button>
             </div>
-          </header>
+          </motion.header>
 
           <div style={menuRowStyle}>
             {["Search Builder", "Saved Filters", "Campaigns", "Talent Pipelines", "Exports"].map((item) => (
-              <button key={item} type="button" onClick={() => setActiveTab(item)} style={{ ...tabBtnStyle, ...(activeTab === item ? tabBtnActiveStyle : {}) }}>
+              <motion.button key={item} whileHover={{ y: -2 }} type="button" onClick={() => setActiveTab(item)} style={{ ...tabBtnStyle, ...(activeTab === item ? tabBtnActiveStyle : {}) }}>
                 {item}
-              </button>
+              </motion.button>
             ))}
           </div>
 
@@ -394,7 +404,7 @@ export default function LinkedinPage() {
 
           {activeTab === "Search Builder" && (
             <>
-              <form onSubmit={onSearch} style={panelStyle}>
+              <motion.form onSubmit={onSearch} style={panelStyle} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
                 <h3 style={sectionTitle}>Core LinkedIn search filters</h3>
                 <div style={gridStyle}>
                   <Field label="Role keywords"><MultiValueInput values={titleFilters} onChange={setTitleFilters} placeholder="Add role and press Enter (e.g., Product Manager)" /></Field>
@@ -419,19 +429,11 @@ export default function LinkedinPage() {
                   </Field>
 
                   <Field label="Job type">
-                    <select multiple value={typeFilters} onChange={(e) => setTypeFilters(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
-                      {jobTypeOptions.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                    <MultiSelectChips options={jobTypeOptions} values={typeFilters} onChange={setTypeFilters} />
                   </Field>
 
                   <Field label="Experience level">
-                    <select multiple value={experienceLevels} onChange={(e) => setExperienceLevels(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
-                      {experienceOptions.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                    <MultiSelectChips options={experienceOptions} values={experienceLevels} onChange={setExperienceLevels} />
                   </Field>
 
                   <Field label="Industry"><MultiValueInput values={industryFilters} onChange={setIndustryFilters} placeholder="Add industry and press Enter (e.g., FinTech)" /></Field>
@@ -450,11 +452,7 @@ export default function LinkedinPage() {
                   <Field label="Min employees"><input type="number" min={0} value={employeesGte} onChange={(e) => setEmployeesGte(e.target.value)} style={inputStyle} /></Field>
                   <Field label="Max employees"><input type="number" min={0} value={employeesLte} onChange={(e) => setEmployeesLte(e.target.value)} style={inputStyle} /></Field>
                   <Field label="Workplace preset">
-                    <select multiple value={workplaceFilters} onChange={(e) => setWorkplaceFilters(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
-                      {workplaceOptions.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
+                    <MultiSelectChips options={workplaceOptions} values={workplaceFilters} onChange={setWorkplaceFilters} />
                   </Field>
                 </div>
 
@@ -465,16 +463,16 @@ export default function LinkedinPage() {
                 </div>
 
                 <button type="submit" disabled={loading} style={submitStyle}>{loading ? "Searching..." : "Search"}</button>
-              </form>
+              </motion.form>
 
-              <section style={panelStyle}>
+              <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h3 style={sectionTitle}>Generated LinkedIn search query</h3>
                 <p style={{ margin: "0 0 10px", color: "#93c5fd", fontSize: "0.9rem" }}>
                   This URL updates live as you choose filters.
                 </p>
                 <code style={queryStyle}>{queryUrl}</code>
                 {error && <p style={{ color: "#fca5a5", marginTop: 12 }}>{error}</p>}
-              </section>
+              </motion.section>
             </>
           )}
 
@@ -533,14 +531,14 @@ export default function LinkedinPage() {
 
           <section style={resultsGridStyle}>
             {jobs.map((job) => (
-              <article key={job.id} style={jobCardStyle}>
+              <motion.article key={job.id} style={jobCardStyle} whileHover={{ y: -4 }}>
                 <h4 style={{ margin: "0 0 8px" }}>{job.title}</h4>
                 <p style={metaStyle}><strong>Company:</strong> {job.company}</p>
                 <p style={metaStyle}><strong>Location:</strong> {job.location}</p>
                 <p style={metaStyle}><strong>Posted:</strong> {job.date}</p>
                 {job.salary && <p style={metaStyle}><strong>Salary:</strong> {job.salary}</p>}
                 <a href={job.url} target="_blank" rel="noreferrer" style={{ color: "#60a5fa" }}>Open job ↗</a>
-              </article>
+              </motion.article>
             ))}
           </section>
         </section>
@@ -551,10 +549,10 @@ export default function LinkedinPage() {
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <article style={kpiCardStyle}>
+    <motion.article style={kpiCardStyle} whileHover={{ y: -5 }}>
       <p style={{ margin: 0, color: "#93c5fd", fontSize: "0.82rem" }}>{label}</p>
       <strong style={{ fontSize: "1.15rem" }}>{value}</strong>
-    </article>
+    </motion.article>
   );
 }
 
@@ -623,16 +621,79 @@ function MultiValueInput({
   );
 }
 
+function MultiSelectChips({
+  options,
+  values,
+  onChange,
+}: {
+  options: readonly string[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const toggle = (value: string) => {
+    if (values.includes(value)) {
+      onChange(values.filter((item) => item !== value));
+      return;
+    }
+    onChange([...values, value]);
+  };
+
+  return (
+    <div style={chipWrapStyle}>
+      {options.map((option) => {
+        const active = values.includes(option);
+        return (
+          <motion.button
+            key={option}
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => toggle(option)}
+            style={{ ...chipSelectorStyle, ...(active ? chipSelectorActiveStyle : {}) }}
+          >
+            {option}
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+
 const shellStyle: CSSProperties = {
   minHeight: "100vh",
-  background: "radial-gradient(circle at top, #172554, #020617 60%)",
+  display: "flex",
+  background: "#020617",
   color: "#e2e8f0",
 };
 
+const sidebarStyle: CSSProperties = {
+  width: 220,
+  borderRight: "1px solid #1e293b",
+  background: "#020617",
+  padding: 20,
+};
+
+const logoStyle: CSSProperties = {
+  margin: "0 0 24px",
+  fontSize: "1.3rem",
+};
+
+const sideItemStyle: CSSProperties = {
+  width: "100%",
+  border: "1px solid transparent",
+  textAlign: "left",
+  color: "#cbd5e1",
+  background: "transparent",
+  padding: "10px 12px",
+  borderRadius: 8,
+  cursor: "pointer",
+  marginBottom: 10,
+};
+
 const contentStyle: CSSProperties = {
+  flex: 1,
   padding: "28px 24px 40px",
   maxWidth: 1200,
-  margin: "0 auto",
+  margin: "0 auto 0 0",
 };
 
 const navbarStyle: CSSProperties = {
@@ -844,4 +905,31 @@ const chipInputStyle: CSSProperties = {
   color: "#e2e8f0",
   fontSize: "0.9rem",
   width: "100%",
+};
+
+const chipWrapStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: 10,
+  minHeight: 42,
+  background: "#0b1222",
+  border: "1px solid #475569",
+  borderRadius: 10,
+  padding: 8,
+};
+
+const chipSelectorStyle: CSSProperties = {
+  border: "1px solid #334155",
+  background: "#020617",
+  color: "#cbd5e1",
+  borderRadius: 999,
+  padding: "6px 14px",
+  cursor: "pointer",
+};
+
+const chipSelectorActiveStyle: CSSProperties = {
+  border: "none",
+  color: "white",
+  background: "linear-gradient(90deg,#2563eb,#7c3aed)",
+  boxShadow: "0 0 12px rgba(99,102,241,0.5)",
 };

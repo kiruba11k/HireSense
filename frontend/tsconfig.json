@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "framer-motion": [
+        "lib/framer-motion"
+      ]
+    },
     "lib": [
       "dom",
       "dom.iterable",
