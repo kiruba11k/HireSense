@@ -42,21 +42,90 @@ const FILTERS_KEY = "hiresense.linkedin.saved_filters";
 const FORM_KEY = "hiresense.linkedin.form_state";
 const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
 
-const JOB_FIELDS = ["title", "job_title", "organization", "company", "company_name", "location", "url", "linkedin_url", "source_url"];
+const JOB_FIELDS = [
+  "title",
+  "job_title",
+  "position",
+  "job_position",
+  "organization",
+  "company",
+  "company_name",
+  "location",
+  "job_location",
+  "url",
+  "job_url",
+  "linkedin_url",
+  "source_url",
+];
+
+const pickFirstString = (value: any): string | undefined => {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized || undefined;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const match = pickFirstString(entry);
+      if (match) return match;
+    }
+    return undefined;
+  }
+  if (value && typeof value === "object") {
+    for (const entry of Object.values(value)) {
+      const match = pickFirstString(entry);
+      if (match) return match;
+    }
+  }
+  return undefined;
+};
+
+const tryParseJsonString = (value: any): any => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+};
+
+const isObject = (value: any) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const isLikelyJobRow = (value: any): boolean => {
+  if (!isObject(value)) return false;
+  return JOB_FIELDS.some((field) => value[field] != null) || Boolean(value.locations_raw || value.description_text);
+};
 
 const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
-  if (depth > 5 || value == null) return [];
-
-  if (Array.isArray(value)) {
-    if (!value.length) return [];
-    const allObjects = value.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
-    if (allObjects) return [value];
-    return value.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+  if (depth > 8 || value == null) return [];
+  const parsedValue = tryParseJsonString(value);
+  if (parsedValue !== value) {
+    return collectObjectArrays(parsedValue, depth + 1);
   }
 
-  if (typeof value !== "object") return [];
+  if (Array.isArray(parsedValue)) {
+    if (!parsedValue.length) return [];
+    const allObjects = parsedValue.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
+    if (allObjects) return [parsedValue];
 
-  return Object.values(value).flatMap((entry) => collectObjectArrays(entry, depth + 1));
+    const objectEntries = parsedValue.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
+    const discovered = parsedValue.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+    return objectEntries.length ? [objectEntries, ...discovered] : discovered;
+  }
+
+  if (typeof parsedValue !== "object") return [];
+
+  const values = Object.values(parsedValue);
+  const nestedCandidates = values.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+  const objectValues = values.filter((entry) => isObject(entry));
+  const keys = Object.keys(parsedValue);
+  const numericKeyedObjectValues =
+    keys.length >= 1 && keys.every((key) => /^\d+$/.test(key)) ? [objectValues] : [];
+  const groupedObjectValues = objectValues.length >= 2 ? [objectValues] : [];
+  const selfCandidate = isLikelyJobRow(parsedValue) ? [[parsedValue]] : [];
+
+  return [...selfCandidate, ...numericKeyedObjectValues, ...groupedObjectValues, ...nestedCandidates];
 };
 
 const scoreCandidate = (items: any[]) => {
@@ -80,13 +149,19 @@ const parseJobs = (payload: any): JobCard[] => {
     .sort((a, b) => b.score - a.score || b.items.length - a.items.length)[0]?.items || [];
 
   return candidates.map((job: any, idx: number) => ({
-    id: job.id || job.job_id || `${job.organization || job.company || "job"}-${idx}`,
-    title: job.title || job.job_title || "Unknown Title",
-    company: job.organization || job.company || job.company_name || "Unknown Company",
-    location: job.location || "Unknown Location",
-    date: job.date_posted || job.posted_date || "N/A",
-    url: job.url || job.linkedin_url || job.source_url || "#",
-    salary: job.salary_raw || job.salary || undefined,
+    id: pickFirstString(job.id) || pickFirstString(job.job_id) || `${pickFirstString(job.organization) || pickFirstString(job.company) || "job"}-${idx}`,
+    title: pickFirstString(job.title) || pickFirstString(job.job_title) || pickFirstString(job.job_position) || pickFirstString(job.position) || "Unknown Title",
+    company: pickFirstString(job.organization) || pickFirstString(job.company) || pickFirstString(job.company_name) || "Unknown Company",
+    location:
+      pickFirstString(job.location) ||
+      pickFirstString(job.job_location) ||
+      pickFirstString(job.locations_derived) ||
+      pickFirstString(job.countries_derived) ||
+      pickFirstString(job.locations_raw) ||
+      "Unknown Location",
+    date: pickFirstString(job.date_posted) || pickFirstString(job.posted_date) || pickFirstString(job.posted_time) || "N/A",
+    url: pickFirstString(job.url) || pickFirstString(job.job_url) || pickFirstString(job.linkedin_url) || pickFirstString(job.source_url) || "#",
+    salary: pickFirstString(job.salary_raw) || pickFirstString(job.salary) || pickFirstString(job.salary_range) || undefined,
   }));
 };
 
