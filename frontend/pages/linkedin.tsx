@@ -87,7 +87,11 @@ const isLikelyJobRow = (value: any): boolean => {
 };
 
 const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
-  if (depth > 5 || value == null) return [];
+  if (depth > 8 || value == null) return [];
+  const parsedValue = tryParseJsonString(value);
+  if (parsedValue !== value) {
+    return collectObjectArrays(parsedValue, depth + 1);
+  }
 
   if (Array.isArray(value)) {
     if (!value.length) return [];
@@ -99,7 +103,16 @@ const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
     return objectEntries.length ? [objectEntries, ...discovered] : discovered;
   }
 
-  if (typeof value !== "object") return [];
+  if (typeof parsedValue !== "object") return [];
+
+  const values = Object.values(parsedValue);
+  const nestedCandidates = values.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+  const objectValues = values.filter((entry) => isObject(entry));
+  const keys = Object.keys(parsedValue);
+  const numericKeyedObjectValues =
+    keys.length >= 1 && keys.every((key) => /^\d+$/.test(key)) ? [objectValues] : [];
+  const groupedObjectValues = objectValues.length >= 2 ? [objectValues] : [];
+  const selfCandidate = isLikelyJobRow(parsedValue) ? [[parsedValue]] : [];
 
   const values = Object.values(value);
   const nestedCandidates = values.flatMap((entry) => collectObjectArrays(entry, depth + 1));
