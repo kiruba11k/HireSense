@@ -42,18 +42,45 @@ const FILTERS_KEY = "hiresense.linkedin.saved_filters";
 const FORM_KEY = "hiresense.linkedin.form_state";
 const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
 
+const JOB_FIELDS = ["title", "job_title", "organization", "company", "company_name", "location", "url", "linkedin_url", "source_url"];
+
+const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
+  if (depth > 5 || value == null) return [];
+
+  if (Array.isArray(value)) {
+    if (!value.length) return [];
+    const allObjects = value.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
+    if (allObjects) return [value];
+    return value.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+  }
+
+  if (typeof value !== "object") return [];
+
+  return Object.values(value).flatMap((entry) => collectObjectArrays(entry, depth + 1));
+};
+
+const scoreCandidate = (items: any[]) => {
+  if (!items.length) return 0;
+  const maxSample = Math.min(10, items.length);
+  let score = 0;
+  for (let i = 0; i < maxSample; i += 1) {
+    const row = items[i];
+    if (!row || typeof row !== "object") continue;
+    score += JOB_FIELDS.reduce((count, key) => count + (row[key] ? 1 : 0), 0);
+  }
+  return score;
+};
+
 const parseJobs = (payload: any): JobCard[] => {
-  const raw = payload?.data;
-  const candidates = Array.isArray(raw)
-    ? raw
-    : Array.isArray(raw?.jobs)
-      ? raw.jobs
-      : Array.isArray(raw?.data)
-        ? raw.data
-        : [];
+  const arrays = collectObjectArrays(payload);
+  if (!arrays.length) return [];
+
+  const candidates = arrays
+    .map((items) => ({ items, score: scoreCandidate(items) }))
+    .sort((a, b) => b.score - a.score || b.items.length - a.items.length)[0]?.items || [];
 
   return candidates.map((job: any, idx: number) => ({
-    id: job.id || job.job_id || `${job.organization || "job"}-${idx}`,
+    id: job.id || job.job_id || `${job.organization || job.company || "job"}-${idx}`,
     title: job.title || job.job_title || "Unknown Title",
     company: job.organization || job.company || job.company_name || "Unknown Company",
     location: job.location || "Unknown Location",
@@ -371,9 +398,18 @@ export default function LinkedinPage() {
       setTrackerProgress(84);
       setJobs(parsedJobs);
       if (!parsedJobs.length) {
+        const hasAnyPayload = Boolean(
+          response &&
+          ((typeof response === "object" && Object.keys(response).length > 0) ||
+            (Array.isArray(response) && response.length > 0))
+        );
         setTrackerProgress(100);
         setTrackerStatus("complete");
-        setTrackerMessage("Scraping complete. No jobs matched this search.");
+        setTrackerMessage(
+          hasAnyPayload
+            ? "Scraping complete. API returned JSON, but no recognizable job rows were found."
+            : "Scraping complete. No jobs matched this search."
+        );
         setCompletedAt(new Date().toISOString());
       }
     } catch (err: any) {
