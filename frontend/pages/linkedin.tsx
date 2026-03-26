@@ -12,6 +12,7 @@ type JobCard = {
   date: string;
   url: string;
   salary?: string;
+  raw: Record<string, any>;
 };
 
 type SavedFilter = {
@@ -79,6 +80,17 @@ const pickFirstString = (value: any): string | undefined => {
   return undefined;
 };
 
+const parseJsonIfString = (value: any): any => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || !(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+};
+
 const isObject = (value: any) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const isLikelyJobRow = (value: any): boolean => {
@@ -123,7 +135,8 @@ const scoreCandidate = (items: any[]) => {
 };
 
 const parseJobs = (payload: any): JobCard[] => {
-  const arrays = collectObjectArrays(payload);
+  const normalizedPayload = parseJsonIfString(payload);
+  const arrays = collectObjectArrays(normalizedPayload);
   if (!arrays.length) return [];
 
   const candidates = arrays
@@ -144,7 +157,19 @@ const parseJobs = (payload: any): JobCard[] => {
     date: pickFirstString(job.date_posted) || pickFirstString(job.posted_date) || pickFirstString(job.posted_time) || "N/A",
     url: pickFirstString(job.url) || pickFirstString(job.job_url) || pickFirstString(job.linkedin_url) || pickFirstString(job.source_url) || "#",
     salary: pickFirstString(job.salary_raw) || pickFirstString(job.salary) || pickFirstString(job.salary_range) || undefined,
+    raw: isObject(job) ? job : { value: job },
   }));
+};
+
+const prettifyValue = (value: any) => {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 };
 
 const normalize = (value: string) => value.trim() || undefined;
@@ -299,6 +324,13 @@ export default function LinkedinPage() {
   );
 
   const queryUrl = useMemo(() => buildLinkedInJobSearchUrl(payloadPreview), [payloadPreview]);
+  const dynamicColumns = useMemo(() => {
+    const keys = new Set<string>();
+    streamedJobs.forEach((job) => {
+      Object.keys(job.raw || {}).forEach((key) => keys.add(key));
+    });
+    return Array.from(keys).sort((a, b) => a.localeCompare(b));
+  }, [streamedJobs]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -714,17 +746,33 @@ export default function LinkedinPage() {
             </section>
           )}
 
-          <section style={resultsGridStyle}>
-            {streamedJobs.map((job) => (
-              <motion.article key={job.id} style={jobCardStyle} whileHover={{ y: -4 }}>
-                <h4 style={{ margin: "0 0 8px" }}>{job.title}</h4>
-                <p style={metaStyle}><strong>Company:</strong> {job.company}</p>
-                <p style={metaStyle}><strong>Location:</strong> {job.location}</p>
-                <p style={metaStyle}><strong>Posted:</strong> {job.date}</p>
-                {job.salary && <p style={metaStyle}><strong>Salary:</strong> {job.salary}</p>}
-                <a href={job.url} target="_blank" rel="noreferrer" style={{ color: "#60a5fa" }}>Open job ↗</a>
-              </motion.article>
-            ))}
+          <section style={panelStyle}>
+            <h3 style={sectionTitle}>Live JSON Output ({streamedJobs.length})</h3>
+            {!streamedJobs.length && <p style={emptyTextStyle}>No rows streamed yet.</p>}
+            {streamedJobs.length > 0 && (
+              <div style={tableWrapStyle}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      {dynamicColumns.map((column) => (
+                        <th key={column} style={tableHeadCellStyle}>{column}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {streamedJobs.map((job) => (
+                      <tr key={job.id}>
+                        {dynamicColumns.map((column) => (
+                          <td key={`${job.id}-${column}`} style={tableCellStyle}>
+                            {prettifyValue(job.raw?.[column])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </section>
       </main>
@@ -1028,17 +1076,35 @@ const trackerBarFillStyle: CSSProperties = {
   transition: "width 220ms ease",
 };
 
-const resultsGridStyle: CSSProperties = {
-  display: "grid",
-  gap: 10,
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-};
-
-const jobCardStyle: CSSProperties = {
+const tableWrapStyle: CSSProperties = {
+  overflowX: "auto",
   border: "1px solid #334155",
   borderRadius: 12,
-  background: "rgba(15, 23, 42, 0.85)",
-  padding: 12,
+};
+
+const tableStyle: CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: 800,
+};
+
+const tableHeadCellStyle: CSSProperties = {
+  textAlign: "left",
+  padding: "10px 8px",
+  borderBottom: "1px solid #334155",
+  color: "#bfdbfe",
+  background: "#0b1222",
+  position: "sticky",
+  top: 0,
+};
+
+const tableCellStyle: CSSProperties = {
+  padding: "8px",
+  borderBottom: "1px solid #1e293b",
+  color: "#cbd5e1",
+  verticalAlign: "top",
+  wordBreak: "break-word",
+  maxWidth: 360,
 };
 
 const metaStyle: CSSProperties = {
