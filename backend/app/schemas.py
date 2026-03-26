@@ -35,15 +35,15 @@ class LinkedInSearchRequest(BaseModel):
     description_filter: str | None = None
     organization_filter: str | None = None
     organization_slug_filter: str | None = None
-    type_filter: str | None = None
+    type_filter: str | list[str] | None = None
     remote: bool | None = None
     agency: bool | None = None
-    seniority_filter: str | None = None
-    industry_filter: str | None = None
+    seniority_filter: str | list[str] | None = None
+    industry_filter: str | list[str] | None = None
     include_ai: bool | None = None
-    ai_work_arrangement_filter: str | None = None
-    ai_experience_level_filter: str | None = None
-    ai_taxonomies_a_filter: str | None = None
+    ai_work_arrangement_filter: str | list[str] | None = None
+    ai_experience_level_filter: str | list[str] | None = None
+    ai_taxonomies_a_filter: str | list[str] | None = None
     ai_has_salary: bool | None = None
     date_filter: str | None = None
     order: str | None = None
@@ -56,6 +56,9 @@ class LinkedInSearchRequest(BaseModel):
 
     def to_query_params(self) -> dict[str, Any]:
         data = self.model_dump(exclude={"window", "extra_query_params"}, exclude_none=True)
+        for key, value in list(data.items()):
+            if isinstance(value, list):
+                data[key] = ",".join(str(item) for item in value if item not in (None, ""))
         data.update(self.extra_query_params)
         return data
 
