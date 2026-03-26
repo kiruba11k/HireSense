@@ -20,6 +20,8 @@ const AGENT_CONFIG = [
   { id: "aggregator-agent", name: "Intent Signal Aggregator", icon: "fa-wave-square", fields: ["Weighting Model", "Signal Window", "Priorities"] },
 ];
 
+const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
+
 declare global {
   interface Window {
     Chart?: any;
@@ -50,6 +52,28 @@ export default function Home() {
     () => AGENT_CONFIG.map((a) => ({ ...a, status: agentState[a.id] || "Idle" })),
     [agentState]
   );
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const persisted = window.sessionStorage.getItem(DASHBOARD_STATE_KEY);
+      if (!persisted) return;
+      const parsed = JSON.parse(persisted);
+      if (parsed.theme === "dark" || parsed.theme === "light") setTheme(parsed.theme);
+      if (typeof parsed.activeView === "string") setActiveView(parsed.activeView);
+      if (typeof parsed.company === "string") setCompany(parsed.company);
+      if (Array.isArray(parsed.logs)) setLogs(parsed.logs.slice(0, 10));
+      if (parsed.agentState && typeof parsed.agentState === "object") setAgentState(parsed.agentState);
+    } catch {
+      // ignore invalid session state
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ theme, activeView, company, logs, agentState }));
+  }, [theme, activeView, company, logs, agentState]);
 
   useEffect(() => {
     const interval = setInterval(() => {
