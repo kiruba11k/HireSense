@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import csv
+import io
 import uuid
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket
+from fastapi.responses import StreamingResponse
 
 from app.db import SessionLocal
 from app.models import Result, Task
@@ -58,6 +61,53 @@ async def linkedin_jobs_search(payload: LinkedInSearchRequest):
         raise HTTPException(status_code=result["status_code"], detail=result["data"])
 
     return result
+
+
+def _extract_linkedin_jobs(data: object) -> list[dict]:
+    if isinstance(data, list):
+        return [row for row in data if isinstance(row, dict)]
+    if not isinstance(data, dict):
+        return []
+    nested_data = data.get("data")
+    if isinstance(nested_data, list):
+        return [row for row in nested_data if isinstance(row, dict)]
+    nested_jobs = data.get("jobs")
+    if isinstance(nested_jobs, list):
+        return [row for row in nested_jobs if isinstance(row, dict)]
+    return []
+
+
+@app.post("/linkedin/jobs/csv")
+async def linkedin_jobs_search_csv(payload: LinkedInSearchRequest):
+    service = LinkedInSearchService()
+    try:
+        result = await asyncio.to_thread(service.search, LinkedInWindow(payload.window.value), payload.to_query_params())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if result["status_code"] >= 400:
+        raise HTTPException(status_code=result["status_code"], detail=result["data"])
+
+    jobs = _extract_linkedin_jobs(result.get("data"))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Company", "Location", "Posted", "Url", "Salary"])
+    for job in jobs:
+        writer.writerow(
+            [
+                job.get("title") or job.get("job_title") or "",
+                job.get("organization") or job.get("company") or job.get("company_name") or "",
+                job.get("location") or "",
+                job.get("date_posted") or job.get("posted_date") or "",
+                job.get("url") or job.get("linkedin_url") or job.get("source_url") or "",
+                job.get("salary_raw") or job.get("salary") or "",
+            ]
+        )
+
+    output.seek(0)
+    headers = {"Content-Disposition": "attachment; filename=linkedin-jobs.csv"}
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=headers)
 
 
 @app.get("/results/{task_id}")

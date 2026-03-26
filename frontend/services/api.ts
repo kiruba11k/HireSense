@@ -12,14 +12,14 @@ export type LinkedInSearchPayload = {
   organization_filter?: string;
   organization_slug_filter?: string;
   description_filter?: string;
-  type_filter?: string;
+  type_filter?: string | string[];
   remote?: boolean;
-  seniority_filter?: string;
-  industry_filter?: string;
+  seniority_filter?: string | string[];
+  industry_filter?: string | string[];
   include_ai?: boolean;
-  ai_work_arrangement_filter?: string;
-  ai_experience_level_filter?: string;
-  ai_taxonomies_a_filter?: string;
+  ai_work_arrangement_filter?: string | string[];
+  ai_experience_level_filter?: string | string[];
+  ai_taxonomies_a_filter?: string | string[];
   ai_has_salary?: boolean;
   date_filter?: string;
   order?: string;
@@ -60,4 +60,22 @@ export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbac
   }
 
   return res.json();
+};
+
+export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
+  const apiBase = fallbackBase || BASE;
+  const res = await fetch(`${apiBase}/linkedin/jobs/csv`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    throw new Error(errorBody || "LinkedIn CSV export failed");
+  }
+
+  return res.blob();
 };

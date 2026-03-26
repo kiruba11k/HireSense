@@ -1,7 +1,7 @@
 import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { LinkedInSearchPayload, LinkedInWindow, searchLinkedInJobs } from "../services/api";
+import { LinkedInSearchPayload, LinkedInWindow, exportLinkedInJobsCsv, searchLinkedInJobs } from "../services/api";
 
 type JobCard = {
   id: string;
@@ -31,18 +31,9 @@ const sortOptions = [
   { label: "Least recent", value: "asc" },
 ] as const;
 
-const workplaceOptions = ["On-site", "Hybrid", "Remote"];
-const experienceOptions = ["Internship", "Entry level", "Associate", "Mid-Senior", "Director", "Executive"];
-const seniorityOptions = ["Entry level", "Associate", "Mid-Senior level", "Director", "Executive"];
-
-const experienceToSeniority: Record<string, string> = {
-  Internship: "Entry level",
-  "Entry level": "Entry level",
-  Associate: "Associate",
-  "Mid-Senior": "Mid-Senior level",
-  Director: "Director",
-  Executive: "Executive",
-};
+const workplaceOptions = ["On-site", "Hybrid", "Remote"] as const;
+const experienceOptions = ["Internship", "Entry level", "Associate", "Mid-Senior level", "Director", "Executive"] as const;
+const jobTypeOptions = ["Full-time", "Part-time", "Contract", "Temporary", "Internship"] as const;
 
 const FILTERS_KEY = "hiresense.linkedin.saved_filters";
 const FORM_KEY = "hiresense.linkedin.form_state";
@@ -70,6 +61,9 @@ const parseJobs = (payload: any): JobCard[] => {
 
 const normalize = (value: string) => value.trim() || undefined;
 const normalizeNumber = (value: string) => (value.trim() === "" ? undefined : Number(value));
+const normalizeArray = (values: string[]) => (values.length ? values : undefined);
+const splitCsv = (value: string | undefined) => value ? value.split(",").map((item) => item.trim()).filter(Boolean) : [];
+const splitInputValues = (value: string) => splitCsv(value);
 
 const mapWindowToLinkedInTpr = (value: LinkedInWindow) => {
   if (value === "24h") return "r86400";
@@ -87,9 +81,16 @@ const buildLinkedInJobSearchUrl = (payload: LinkedInSearchPayload) => {
   if (payload.location_filter) params.set("location", payload.location_filter);
   if (payload.window) params.set("f_TPR", mapWindowToLinkedInTpr(payload.window));
   if (payload.remote) params.set("f_WT", "2");
-  if (payload.type_filter) params.set("f_JT", payload.type_filter);
-  if (payload.seniority_filter) params.set("f_E", payload.seniority_filter);
-  if (payload.industry_filter) params.set("f_I", payload.industry_filter);
+  const typeFilter = Array.isArray(payload.type_filter) ? payload.type_filter.join(",") : payload.type_filter;
+  const experienceFilter = Array.isArray(payload.ai_experience_level_filter) ? payload.ai_experience_level_filter.join(",") : payload.ai_experience_level_filter;
+  const industryFilter = Array.isArray(payload.industry_filter) ? payload.industry_filter.join(",") : payload.industry_filter;
+  const workplaceFilter = Array.isArray(payload.ai_work_arrangement_filter) ? payload.ai_work_arrangement_filter : [];
+  const isRemoteSelected = workplaceFilter.includes("Remote") || payload.remote;
+
+  if (typeFilter) params.set("f_JT", typeFilter);
+  if (experienceFilter) params.set("f_E", experienceFilter);
+  if (industryFilter) params.set("f_I", industryFilter);
+  if (isRemoteSelected) params.set("f_WT", "2");
 
   const easyApplyToken = boolToLinkedIn(payload.directapply, "2");
   if (easyApplyToken) params.set("f_AL", easyApplyToken);
@@ -113,8 +114,9 @@ export default function LinkedinPage() {
   const [locationFilter, setLocationFilter] = useState("");
   const [organizationFilter, setOrganizationFilter] = useState("");
   const [descriptionFilter, setDescriptionFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [seniorityFilter, setSeniorityFilter] = useState("");
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [experienceLevels, setExperienceLevels] = useState<string[]>([]);
+  const [workplaceFilters, setWorkplaceFilters] = useState<string[]>([]);
   const [industryFilter, setIndustryFilter] = useState("");
 
   const [remoteOnly, setRemoteOnly] = useState(false);
@@ -141,11 +143,11 @@ export default function LinkedinPage() {
       location_filter: normalize(locationFilter),
       organization_filter: normalize(organizationFilter),
       description_filter: normalize(descriptionFilter),
-      type_filter: normalize(typeFilter),
-      seniority_filter: normalize(seniorityFilter),
-      ai_experience_level_filter: normalize(seniorityFilter),
-      industry_filter: normalize(industryFilter),
-      remote: remoteOnly || undefined,
+      type_filter: normalizeArray(typeFilters),
+      ai_experience_level_filter: normalizeArray(experienceLevels),
+      ai_work_arrangement_filter: normalizeArray(workplaceFilters),
+      industry_filter: normalizeArray(splitInputValues(industryFilter)),
+      remote: remoteOnly || workplaceFilters.includes("Remote") || undefined,
       directapply: directApply || undefined,
       ai_has_salary: showSalary || undefined,
       employees_gte: normalizeNumber(employeesGte),
@@ -160,10 +162,11 @@ export default function LinkedinPage() {
           location_filter: normalize(locationFilter),
           organization_filter: normalize(organizationFilter),
           description_filter: normalize(descriptionFilter),
-          type_filter: normalize(typeFilter),
-          seniority_filter: normalize(seniorityFilter),
-          industry_filter: normalize(industryFilter),
-          remote: remoteOnly || undefined,
+          type_filter: normalizeArray(typeFilters),
+          ai_experience_level_filter: normalizeArray(experienceLevels),
+          ai_work_arrangement_filter: normalizeArray(workplaceFilters),
+          industry_filter: normalizeArray(splitInputValues(industryFilter)),
+          remote: remoteOnly || workplaceFilters.includes("Remote") || undefined,
           directapply: directApply || undefined,
           ai_has_salary: showSalary || undefined,
           employees_gte: normalizeNumber(employeesGte),
@@ -180,8 +183,9 @@ export default function LinkedinPage() {
       locationFilter,
       organizationFilter,
       descriptionFilter,
-      typeFilter,
-      seniorityFilter,
+      typeFilters,
+      experienceLevels,
+      workplaceFilters,
       industryFilter,
       remoteOnly,
       directApply,
@@ -215,8 +219,9 @@ export default function LinkedinPage() {
         setLocationFilter(data.locationFilter || "");
         setOrganizationFilter(data.organizationFilter || "");
         setDescriptionFilter(data.descriptionFilter || "");
-        setTypeFilter(data.typeFilter || "");
-        setSeniorityFilter(data.seniorityFilter || "");
+        setTypeFilters(data.typeFilters || splitCsv(data.typeFilter));
+        setExperienceLevels(data.experienceLevels || splitCsv(data.aiExperienceLevelFilter || data.seniorityFilter));
+        setWorkplaceFilters(data.workplaceFilters || splitCsv(data.aiWorkArrangementFilter));
         setIndustryFilter(data.industryFilter || "");
         setRemoteOnly(Boolean(data.remoteOnly));
         setDirectApply(Boolean(data.directApply));
@@ -242,8 +247,9 @@ export default function LinkedinPage() {
         locationFilter,
         organizationFilter,
         descriptionFilter,
-        typeFilter,
-        seniorityFilter,
+        typeFilters,
+        experienceLevels,
+        workplaceFilters,
         industryFilter,
         remoteOnly,
         directApply,
@@ -253,7 +259,7 @@ export default function LinkedinPage() {
         order,
       })
     );
-  }, [windowFilter, limit, offset, titleFilter, locationFilter, organizationFilter, descriptionFilter, typeFilter, seniorityFilter, industryFilter, remoteOnly, directApply, showSalary, employeesGte, employeesLte, order]);
+  }, [windowFilter, limit, offset, titleFilter, locationFilter, organizationFilter, descriptionFilter, typeFilters, experienceLevels, workplaceFilters, industryFilter, remoteOnly, directApply, showSalary, employeesGte, employeesLte, order]);
 
   const saveCurrentSearch = () => {
     const name = `${titleFilter || "Search"} • ${new Date().toLocaleString()}`;
@@ -279,9 +285,10 @@ export default function LinkedinPage() {
     setLocationFilter(p.location_filter || "");
     setOrganizationFilter(p.organization_filter || "");
     setDescriptionFilter(p.description_filter || "");
-    setTypeFilter(p.type_filter || "");
-    setSeniorityFilter(p.seniority_filter || p.ai_experience_level_filter || "");
-    setIndustryFilter(p.industry_filter || "");
+    setTypeFilters(Array.isArray(p.type_filter) ? p.type_filter : splitCsv(p.type_filter));
+    setExperienceLevels(Array.isArray(p.ai_experience_level_filter) ? p.ai_experience_level_filter : splitCsv(p.ai_experience_level_filter));
+    setWorkplaceFilters(Array.isArray(p.ai_work_arrangement_filter) ? p.ai_work_arrangement_filter : splitCsv(p.ai_work_arrangement_filter));
+    setIndustryFilter(Array.isArray(p.industry_filter) ? p.industry_filter.join(", ") : (p.industry_filter || ""));
     setRemoteOnly(Boolean(p.remote));
     setDirectApply(Boolean(p.directapply));
     setShowSalary(Boolean(p.ai_has_salary));
@@ -306,18 +313,18 @@ export default function LinkedinPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportJobsCsv = () => {
-    const header = "Title,Company,Location,Posted,Url,Salary\n";
-    const rows = jobs
-      .map((j) => [j.title, j.company, j.location, j.date, j.url, j.salary || ""].map((v) => `"${String(v).replaceAll('"', '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "linkedin-jobs.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportJobsCsv = async () => {
+    try {
+      const blob = await exportLinkedInJobsCsv(payloadPreview);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "linkedin-jobs.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err?.message || "Unable to export CSV");
+    }
   };
 
   const onSearch = async (e: FormEvent) => {
@@ -396,24 +403,22 @@ export default function LinkedinPage() {
                   </Field>
 
                   <Field label="Job type">
-                    <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={inputStyle}>
-                      <option value="">Any</option>
-                      {["Full-time", "Part-time", "Contract", "Temporary", "Internship"].map((option) => (
+                    <select multiple value={typeFilters} onChange={(e) => setTypeFilters(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
+                      {jobTypeOptions.map((option) => (
                         <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
                   </Field>
 
-                  <Field label="Seniority">
-                    <select value={seniorityFilter} onChange={(e) => setSeniorityFilter(e.target.value)} style={inputStyle}>
-                      <option value="">Any</option>
-                      {seniorityOptions.map((option) => (
+                  <Field label="Experience level">
+                    <select multiple value={experienceLevels} onChange={(e) => setExperienceLevels(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
+                      {experienceOptions.map((option) => (
                         <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
                   </Field>
 
-                  <Field label="Industry"><input value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} style={inputStyle} placeholder="Fintech, AI, Healthcare" /></Field>
+                  <Field label="Industry"><input value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} style={inputStyle} placeholder="Fintech, AI, Healthcare (comma-separated)" /></Field>
                   <Field label="Limit"><input type="number" min={10} max={100} value={limit} onChange={(e) => setLimit(Number(e.target.value || 10))} style={inputStyle} /></Field>
                   <Field label="Offset"><input type="number" min={0} value={offset} onChange={(e) => setOffset(Number(e.target.value || 0))} style={inputStyle} /></Field>
                 </div>
@@ -423,17 +428,8 @@ export default function LinkedinPage() {
                   <Field label="Min employees"><input type="number" min={0} value={employeesGte} onChange={(e) => setEmployeesGte(e.target.value)} style={inputStyle} /></Field>
                   <Field label="Max employees"><input type="number" min={0} value={employeesLte} onChange={(e) => setEmployeesLte(e.target.value)} style={inputStyle} /></Field>
                   <Field label="Workplace preset">
-                    <select value={remoteOnly ? "Remote" : ""} onChange={(e) => setRemoteOnly(e.target.value === "Remote")} style={inputStyle}>
-                      <option value="">Any</option>
+                    <select multiple value={workplaceFilters} onChange={(e) => setWorkplaceFilters(Array.from(e.target.selectedOptions, (option) => option.value))} style={{ ...inputStyle, minHeight: 108 }}>
                       {workplaceOptions.map((option) => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Experience preset">
-                    <select value={Object.keys(experienceToSeniority).find((k) => experienceToSeniority[k] === seniorityFilter) || ""} onChange={(e) => setSeniorityFilter(experienceToSeniority[e.target.value] || "")} style={inputStyle}>
-                      <option value="">Any</option>
-                      {experienceOptions.map((option) => (
                         <option key={option} value={option}>{option}</option>
                       ))}
                     </select>
