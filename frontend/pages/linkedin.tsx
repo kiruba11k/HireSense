@@ -72,32 +72,63 @@ const mapWindowToLinkedInTpr = (value: LinkedInWindow) => {
   return "r15552000";
 };
 
-const boolToLinkedIn = (value: boolean | undefined, token: string) => (value ? token : "");
+const JOB_TYPE_MAP: Record<string, string> = {
+  "Full-time": "F",
+  "Part-time": "P",
+  "Contract": "C",
+  "Temporary": "T",
+  Internship: "I",
+};
+
+const EXPERIENCE_MAP: Record<string, string> = {
+  Internship: "1",
+  "Entry level": "2",
+  Associate: "3",
+  "Mid-Senior level": "4",
+  Director: "5",
+  Executive: "6",
+};
+
+const WORKPLACE_MAP: Record<string, string> = {
+  "On-site": "1",
+  Remote: "2",
+  Hybrid: "3",
+};
+
+const mapToLinkedInCodes = (values: string[] | string | undefined, map: Record<string, string>) => {
+  if (!values) return undefined;
+  const normalizedValues = Array.isArray(values)
+    ? values
+    : values.split(",").map((value) => value.trim()).filter(Boolean);
+
+  return normalizedValues
+    .map((value) => map[value])
+    .filter(Boolean)
+    .join(",");
+};
 
 const buildLinkedInJobSearchUrl = (payload: LinkedInSearchPayload) => {
-  const keywords = [payload.title_filter, payload.description_filter, payload.organization_filter].filter(Boolean).join(" ");
   const params = new URLSearchParams();
+
+  const keywords = [payload.title_filter, payload.description_filter, payload.organization_filter]
+    .filter(Boolean)
+    .join(" ");
 
   if (keywords) params.set("keywords", keywords);
   if (payload.location_filter) params.set("location", payload.location_filter);
   if (payload.window) params.set("f_TPR", mapWindowToLinkedInTpr(payload.window));
+
+  const jobTypeCodes = mapToLinkedInCodes(payload.type_filter, JOB_TYPE_MAP);
+  if (jobTypeCodes) params.set("f_JT", jobTypeCodes);
+
+  const expCodes = mapToLinkedInCodes(payload.ai_experience_level_filter, EXPERIENCE_MAP);
+  if (expCodes) params.set("f_E", expCodes);
+
+  const workplaceCodes = mapToLinkedInCodes(payload.ai_work_arrangement_filter, WORKPLACE_MAP);
+  if (workplaceCodes) params.set("f_WT", workplaceCodes);
+
   if (payload.remote) params.set("f_WT", "2");
-  const typeFilter = Array.isArray(payload.type_filter) ? payload.type_filter.join(",") : payload.type_filter;
-  const experienceFilter = Array.isArray(payload.ai_experience_level_filter) ? payload.ai_experience_level_filter.join(",") : payload.ai_experience_level_filter;
-  const industryFilter = Array.isArray(payload.industry_filter) ? payload.industry_filter.join(",") : payload.industry_filter;
-  const workplaceFilter = Array.isArray(payload.ai_work_arrangement_filter) ? payload.ai_work_arrangement_filter : [];
-  const isRemoteSelected = workplaceFilter.includes("Remote") || payload.remote;
-
-  if (typeFilter) params.set("f_JT", typeFilter);
-  if (experienceFilter) params.set("f_E", experienceFilter);
-  if (industryFilter) params.set("f_I", industryFilter);
-  if (isRemoteSelected) params.set("f_WT", "2");
-
-  const easyApplyToken = boolToLinkedIn(payload.directapply, "2");
-  if (easyApplyToken) params.set("f_AL", easyApplyToken);
-
-  const salaryToken = boolToLinkedIn(payload.ai_has_salary, "true");
-  if (salaryToken) params.set("salary", salaryToken);
+  if (payload.directapply) params.set("f_AL", "true");
 
   params.set("sortBy", payload.order === "asc" ? "R" : "DD");
   params.set("start", String(payload.offset || 0));
