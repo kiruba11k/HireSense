@@ -79,17 +79,6 @@ const pickFirstString = (value: any): string | undefined => {
   return undefined;
 };
 
-const tryParseJsonString = (value: any): any => {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) return value;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
-};
-
 const isObject = (value: any) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 const isLikelyJobRow = (value: any): boolean => {
@@ -104,13 +93,13 @@ const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
     return collectObjectArrays(parsedValue, depth + 1);
   }
 
-  if (Array.isArray(parsedValue)) {
-    if (!parsedValue.length) return [];
-    const allObjects = parsedValue.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
-    if (allObjects) return [parsedValue];
+  if (Array.isArray(value)) {
+    if (!value.length) return [];
+    const allObjects = value.every((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
+    if (allObjects) return [value];
 
-    const objectEntries = parsedValue.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
-    const discovered = parsedValue.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+    const objectEntries = value.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry));
+    const discovered = value.flatMap((entry) => collectObjectArrays(entry, depth + 1));
     return objectEntries.length ? [objectEntries, ...discovered] : discovered;
   }
 
@@ -125,7 +114,13 @@ const collectObjectArrays = (value: any, depth = 0): Array<any[]> => {
   const groupedObjectValues = objectValues.length >= 2 ? [objectValues] : [];
   const selfCandidate = isLikelyJobRow(parsedValue) ? [[parsedValue]] : [];
 
-  return [...selfCandidate, ...numericKeyedObjectValues, ...groupedObjectValues, ...nestedCandidates];
+  const values = Object.values(value);
+  const nestedCandidates = values.flatMap((entry) => collectObjectArrays(entry, depth + 1));
+  const objectValues = values.filter((entry) => isObject(entry));
+  const groupedObjectValues = objectValues.length >= 2 ? [objectValues] : [];
+  const selfCandidate = isLikelyJobRow(value) ? [[value]] : [];
+
+  return [...selfCandidate, ...groupedObjectValues, ...nestedCandidates];
 };
 
 const scoreCandidate = (items: any[]) => {
