@@ -56,6 +56,12 @@ async def linkedin_jobs_search(payload: LinkedInSearchRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    if isinstance(result["data"], str) and "<html" in result["data"].lower():
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid response from job provider (HTML instead of JSON). Check API key or params.",
+        )
+
     if result["status_code"] >= 400:
         raise HTTPException(status_code=result["status_code"], detail=result["data"])
 

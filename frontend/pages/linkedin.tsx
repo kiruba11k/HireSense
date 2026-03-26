@@ -165,6 +165,7 @@ export default function LinkedinPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<JobCard[]>([]);
+  const [streamedJobs, setStreamedJobs] = useState<JobCard[]>([]);
 
   const payloadPreview = useMemo<LinkedInSearchPayload>(
     () => ({
@@ -342,6 +343,8 @@ export default function LinkedinPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setJobs([]);
+    setStreamedJobs([]);
 
     try {
       const response = await searchLinkedInJobs(payloadPreview);
@@ -352,6 +355,25 @@ export default function LinkedinPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!jobs.length) {
+      setStreamedJobs([]);
+      return;
+    }
+
+    let index = 0;
+    setStreamedJobs([]);
+    const timer = window.setInterval(() => {
+      index += 1;
+      setStreamedJobs(jobs.slice(0, index));
+      if (index >= jobs.length) {
+        window.clearInterval(timer);
+      }
+    }, 70);
+
+    return () => window.clearInterval(timer);
+  }, [jobs]);
 
   const backToDashboard = () => {
     if (typeof window !== "undefined") {
@@ -476,9 +498,9 @@ export default function LinkedinPage() {
               </motion.form>
 
               <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <h3 style={sectionTitle}>Generated LinkedIn search query</h3>
+                <h3 style={sectionTitle}>Preview LinkedIn URL (manual use only)</h3>
                 <p style={{ margin: "0 0 10px", color: "#93c5fd", fontSize: "0.9rem" }}>
-                  This URL updates live as you choose filters.
+                  This URL is display-only for manual review. Job fetches use the backend RapidAPI endpoint.
                 </p>
                 <code style={queryStyle}>{queryUrl}</code>
                 {error && <p style={{ color: "#fca5a5", marginTop: 12 }}>{error}</p>}
@@ -540,7 +562,7 @@ export default function LinkedinPage() {
           )}
 
           <section style={resultsGridStyle}>
-            {jobs.map((job) => (
+            {streamedJobs.map((job) => (
               <motion.article key={job.id} style={jobCardStyle} whileHover={{ y: -4 }}>
                 <h4 style={{ margin: "0 0 8px" }}>{job.title}</h4>
                 <p style={metaStyle}><strong>Company:</strong> {job.company}</p>
