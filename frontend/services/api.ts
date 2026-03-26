@@ -3,8 +3,8 @@ const BASE = process.env.NEXT_PUBLIC_API_URL;
 const resolveApiBase = (fallbackBase?: string) => {
   if (fallbackBase) return fallbackBase;
   if (BASE) return BASE;
-  if (typeof window !== "undefined") return "http://localhost:8000";
-  return "http://backend:8000";
+  if (typeof window !== "undefined") return "https://hiresense-backend-75hd.onrender.com";
+  return "https://hiresense-backend-75hd.onrender.com";
 };
 
 const parseApiResponse = async (res: Response) => {
@@ -74,13 +74,20 @@ export const getResults = async (taskId: string) => {
 
 export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
   const apiBase = resolveApiBase(fallbackBase);
-  const res = await fetch(`${apiBase}/linkedin/jobs`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/linkedin/jobs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach backend at ${apiBase}. Start the API server and set NEXT_PUBLIC_API_URL if needed.`
+    );
+  }
 
   const { data, looksLikeHtml } = await parseApiResponse(res);
   if (!res.ok) {
@@ -104,13 +111,20 @@ export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbac
 
 export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
   const apiBase = resolveApiBase(fallbackBase);
-  const res = await fetch(`${apiBase}/linkedin/jobs/csv`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/linkedin/jobs/csv`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach backend at ${apiBase}. Start the API server and set NEXT_PUBLIC_API_URL if needed.`
+    );
+  }
 
   if (!res.ok) {
     const errorBody = await res.text();

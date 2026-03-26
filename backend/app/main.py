@@ -7,8 +7,10 @@ import json
 import uuid
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from app.config import settings
 from app.db import SessionLocal
 from app.models import Result, Task
 from app.schemas import LinkedInSearchRequest, Stage2Request
@@ -17,6 +19,14 @@ from app.services.pipeline import run_pipeline
 from app.services.websocket_manager import manager
 
 app = FastAPI(title="HireSense Stage-2 Intent Pipeline")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.websocket("/ws/{task_id}")
