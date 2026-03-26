@@ -54,12 +54,11 @@ export const searchLinkedInJobs = async (payload: LinkedInSearchPayload, fallbac
     body: JSON.stringify(payload),
   });
 
+  const data = await res.json();
   if (!res.ok) {
-    const errorBody = await res.text();
-    throw new Error(errorBody || "LinkedIn search failed");
+    throw new Error(data.detail || "Failed to fetch jobs");
   }
-
-  return res.json();
+  return data;
 };
 
 export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fallbackBase?: string) => {
