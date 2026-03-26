@@ -10,7 +10,7 @@ class Settings:
         origin.strip()
         for origin in os.getenv(
             "CORS_ALLOW_ORIGINS",
-            "https://hiresense-frontend.onrender.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
+            "https://hiresense-frontend-on61.onrender.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
         ).split(",")
         if origin.strip()
     ]
