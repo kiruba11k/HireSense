@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import json
 import uuid
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket
@@ -47,8 +48,6 @@ async def status(task_id: str):
     return {"status": task.status if task else "not_found"}
 
 
-
-
 @app.post("/linkedin/jobs")
 async def linkedin_jobs_search(payload: LinkedInSearchRequest):
     service = LinkedInSearchService()
@@ -68,13 +67,48 @@ def _extract_linkedin_jobs(data: object) -> list[dict]:
         return [row for row in data if isinstance(row, dict)]
     if not isinstance(data, dict):
         return []
+
     nested_data = data.get("data")
     if isinstance(nested_data, list):
         return [row for row in nested_data if isinstance(row, dict)]
+
     nested_jobs = data.get("jobs")
     if isinstance(nested_jobs, list):
         return [row for row in nested_jobs if isinstance(row, dict)]
+
+    for value in data.values():
+        if isinstance(value, list) and value and all(isinstance(row, dict) for row in value):
+            return value
+
     return []
+
+
+def _build_dynamic_csv_rows(jobs: list[dict]) -> tuple[list[str], list[list[str]]]:
+    if not jobs:
+        return [], []
+
+    keys: list[str] = []
+    seen: set[str] = set()
+    for job in jobs:
+        for key in job.keys():
+            if key not in seen:
+                seen.add(key)
+                keys.append(key)
+
+    rows: list[list[str]] = []
+    for job in jobs:
+        row: list[str] = []
+        for key in keys:
+            value = job.get(key, "")
+            if isinstance(value, (dict, list)):
+                row.append(json.dumps(value, ensure_ascii=False))
+            elif value is None:
+                row.append("")
+            else:
+                row.append(str(value))
+        rows.append(row)
+
+    return keys, rows
 
 
 @app.post("/linkedin/jobs/csv")
@@ -89,25 +123,18 @@ async def linkedin_jobs_search_csv(payload: LinkedInSearchRequest):
         raise HTTPException(status_code=result["status_code"], detail=result["data"])
 
     jobs = _extract_linkedin_jobs(result.get("data"))
+    headers, rows = _build_dynamic_csv_rows(jobs)
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Title", "Company", "Location", "Posted", "Url", "Salary"])
-    for job in jobs:
-        writer.writerow(
-            [
-                job.get("title") or job.get("job_title") or "",
-                job.get("organization") or job.get("company") or job.get("company_name") or "",
-                job.get("location") or "",
-                job.get("date_posted") or job.get("posted_date") or "",
-                job.get("url") or job.get("linkedin_url") or job.get("source_url") or "",
-                job.get("salary_raw") or job.get("salary") or "",
-            ]
-        )
+    if headers:
+        writer.writerow(headers)
+    for row in rows:
+        writer.writerow(row)
 
     output.seek(0)
-    headers = {"Content-Disposition": "attachment; filename=linkedin-jobs.csv"}
-    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=headers)
+    response_headers = {"Content-Disposition": "attachment; filename=linkedin-jobs.csv"}
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=response_headers)
 
 
 @app.get("/results/{task_id}")
