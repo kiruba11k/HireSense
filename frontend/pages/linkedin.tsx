@@ -21,6 +21,8 @@ type SavedFilter = {
   savedAt: string;
 };
 
+type TrackerStatus = "idle" | "running" | "complete" | "error";
+
 const windows: Array<{ label: string; value: LinkedInWindow }> = [
   { label: "Past 24 hours", value: "24h" },
   { label: "Past week", value: "7d" },
@@ -166,6 +168,10 @@ export default function LinkedinPage() {
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<JobCard[]>([]);
   const [streamedJobs, setStreamedJobs] = useState<JobCard[]>([]);
+  const [trackerStatus, setTrackerStatus] = useState<TrackerStatus>("idle");
+  const [trackerMessage, setTrackerMessage] = useState("No scraping task running.");
+  const [trackerProgress, setTrackerProgress] = useState(0);
+  const [completedAt, setCompletedAt] = useState<string | null>(null);
 
   const payloadPreview = useMemo<LinkedInSearchPayload>(
     () => ({
@@ -345,18 +351,43 @@ export default function LinkedinPage() {
     setError("");
     setJobs([]);
     setStreamedJobs([]);
+    setTrackerStatus("running");
+    setTrackerProgress(8);
+    setTrackerMessage("Queued live LinkedIn scrape task…");
+    setCompletedAt(null);
+
+    const heartbeat = window.setInterval(() => {
+      setTrackerProgress((current) => {
+        if (current >= 78) return current;
+        return current + 6;
+      });
+    }, 600);
 
     try {
+      setTrackerMessage("Fetching jobs from RapidAPI LinkedIn endpoint…");
       const response = await searchLinkedInJobs(payloadPreview);
-      setJobs(parseJobs(response));
+      const parsedJobs = parseJobs(response);
+      setTrackerMessage("Parsing and streaming live job updates…");
+      setTrackerProgress(84);
+      setJobs(parsedJobs);
+      if (!parsedJobs.length) {
+        setTrackerProgress(100);
+        setTrackerStatus("complete");
+        setTrackerMessage("Scraping complete. No jobs matched this search.");
+        setCompletedAt(new Date().toISOString());
+      }
     } catch (err: any) {
       setError(err?.message || "Unable to fetch jobs");
+      setTrackerStatus("error");
+      setTrackerMessage("Live scrape failed. Review error details and retry.");
     } finally {
+      window.clearInterval(heartbeat);
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (trackerStatus !== "running") return;
     if (!jobs.length) {
       setStreamedJobs([]);
       return;
@@ -367,13 +398,20 @@ export default function LinkedinPage() {
     const timer = window.setInterval(() => {
       index += 1;
       setStreamedJobs(jobs.slice(0, index));
+      const renderedProgress = Math.min(98, 84 + Math.round((index / jobs.length) * 14));
+      setTrackerProgress(renderedProgress);
+      setTrackerMessage(`Live tracker: rendered ${Math.min(index, jobs.length)} of ${jobs.length} scraped jobs.`);
       if (index >= jobs.length) {
         window.clearInterval(timer);
+        setTrackerProgress(100);
+        setTrackerStatus("complete");
+        setTrackerMessage(`Scraping complete. ${jobs.length} jobs are ready.`);
+        setCompletedAt(new Date().toISOString());
       }
     }, 70);
 
     return () => window.clearInterval(timer);
-  }, [jobs]);
+  }, [jobs, trackerStatus]);
 
   const backToDashboard = () => {
     if (typeof window !== "undefined") {
@@ -504,6 +542,28 @@ export default function LinkedinPage() {
                 </p>
                 <code style={queryStyle}>{queryUrl}</code>
                 {error && <p style={{ color: "#fca5a5", marginTop: 12 }}>{error}</p>}
+              </motion.section>
+
+              <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <h3 style={sectionTitle}>Task Live Tracker</h3>
+                <p style={metaStyle}>{trackerMessage}</p>
+                <div style={trackerBarWrapStyle}>
+                  <div style={{ ...trackerBarFillStyle, width: `${trackerProgress}%` }} />
+                </div>
+                <div style={{ ...navActionsStyle, justifyContent: "space-between", flexWrap: "wrap", marginTop: 10 }}>
+                  <span style={metaStyle}>
+                    Status: <strong>{trackerStatus === "running" ? "Running" : trackerStatus === "complete" ? "Complete" : trackerStatus === "error" ? "Error" : "Idle"}</strong>
+                    {completedAt ? ` • Completed ${new Date(completedAt).toLocaleTimeString()}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    style={{ ...navBtnStyle, opacity: trackerStatus === "complete" ? 1 : 0.5, cursor: trackerStatus === "complete" ? "pointer" : "not-allowed" }}
+                    onClick={exportJobsCsv}
+                    disabled={trackerStatus !== "complete"}
+                  >
+                    Download CSV
+                  </button>
+                </div>
               </motion.section>
             </>
           )}
@@ -857,6 +917,22 @@ const queryStyle: CSSProperties = {
   padding: 10,
   color: "#7dd3fc",
   overflowWrap: "anywhere",
+};
+
+const trackerBarWrapStyle: CSSProperties = {
+  width: "100%",
+  height: 10,
+  borderRadius: 999,
+  overflow: "hidden",
+  border: "1px solid #334155",
+  background: "#020617",
+};
+
+const trackerBarFillStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: 999,
+  background: "linear-gradient(90deg,#22c55e,#3b82f6)",
+  transition: "width 220ms ease",
 };
 
 const resultsGridStyle: CSSProperties = {
