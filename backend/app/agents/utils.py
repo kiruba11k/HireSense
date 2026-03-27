@@ -20,6 +20,10 @@ FUNCTION_KEYWORDS = {
     "QA": ["qa", "quality", "testing", "selenium", "cypress"],
     "AI": ["ai", "ml", "machine learning", "llm", "genai"],
     "CRM": ["crm", "salesforce", "dynamics crm", "hubspot"],
+    "Finance": ["finance", "fp&a", "treasury", "controller", "accounts payable"],
+    "Operations": ["operations", "supply chain", "warehouse", "manufacturing"],
+    "Procurement": ["procurement", "sourcing", "vendor", "purchase"],
+    "Digital Transformation": ["digital transformation", "transformation", "automation"],
 }
 
 TECH_KEYWORDS = {
