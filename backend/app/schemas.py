@@ -199,6 +199,7 @@ class JobSearchInput(BaseModel):
     seniority_filter: list[str] = Field(default_factory=list)
     function_filter: list[str] = Field(default_factory=list)
     exclude_internships: bool = True
+    historical_window: int = Field(default=30, ge=7, le=180)
 
 
 class Stage2Request(BaseModel):
@@ -227,6 +228,8 @@ class JobRecord(BaseModel):
     experience_range: str | None = None
     openings: int | None = None
     recruiter: str | None = None
+    recruiter_signal: str | None = None
+    is_hiring_spike: bool = False
     source: str
     source_url: str | None = None
     scraped_timestamp: datetime = Field(default_factory=datetime.utcnow)
