@@ -406,33 +406,42 @@ export default function LinkedinPage() {
     try {
       setTrackerMessage("Fetching jobs from RapidAPI LinkedIn endpoint…");
       const response = await searchLinkedInJobs(payloadPreview);
+
+      console.log("====== DEBUG START ======");
       console.log("RAW RESPONSE:", response);
       console.log("TYPE:", typeof response);
+      console.log("IS ARRAY:", Array.isArray(response));
+      console.log("RESPONSE.DATA:", response?.data);
+      console.log("IS DATA ARRAY:", Array.isArray(response?.data));
+      console.log("====== DEBUG END ======");
 
-      let normalizedResponse = response;
+      let normalized = response;
 
-      if (typeof response === "string") {
+      // 🔥 unwrap .data if exists
+      if (normalized?.data) {
+        normalized = normalized.data;
+      }
+
+      // 🔥 parse string JSON (VERY IMPORTANT)
+      if (typeof normalized === "string") {
         try {
-          normalizedResponse = JSON.parse(response);
+          normalized = JSON.parse(normalized);
         } catch (e) {
           console.error("JSON parse failed:", e);
-          normalizedResponse = [];
+          normalized = [];
         }
       }
 
-      const parsedJobs = parseJobs(
-        Array.isArray(normalizedResponse)
-          ? normalizedResponse
-          : normalizedResponse?.data
-      );
+      // 🔥 final parse
+      const parsedJobs = parseJobs(normalized);
       setTrackerMessage("Parsing and streaming live job updates…");
       setTrackerProgress(84);
       setJobs(parsedJobs);
       if (!parsedJobs.length) {
         const hasAnyPayload = Boolean(
-          normalizedResponse &&
-          ((typeof normalizedResponse === "object" && Object.keys(normalizedResponse).length > 0) ||
-            (Array.isArray(normalizedResponse) && normalizedResponse.length > 0))
+          normalized &&
+          ((typeof normalized === "object" && Object.keys(normalized).length > 0) ||
+            (Array.isArray(normalized) && normalized.length > 0))
         );
         setTrackerProgress(100);
         setTrackerStatus("complete");
