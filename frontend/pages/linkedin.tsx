@@ -406,15 +406,33 @@ export default function LinkedinPage() {
     try {
       setTrackerMessage("Fetching jobs from RapidAPI LinkedIn endpoint…");
       const response = await searchLinkedInJobs(payloadPreview);
-      const parsedJobs = parseJobs(Array.isArray(response) ? response : response?.data);
+      console.log("RAW RESPONSE:", response);
+      console.log("TYPE:", typeof response);
+
+      let normalizedResponse = response;
+
+      if (typeof response === "string") {
+        try {
+          normalizedResponse = JSON.parse(response);
+        } catch (e) {
+          console.error("JSON parse failed:", e);
+          normalizedResponse = [];
+        }
+      }
+
+      const parsedJobs = parseJobs(
+        Array.isArray(normalizedResponse)
+          ? normalizedResponse
+          : normalizedResponse?.data
+      );
       setTrackerMessage("Parsing and streaming live job updates…");
       setTrackerProgress(84);
       setJobs(parsedJobs);
       if (!parsedJobs.length) {
         const hasAnyPayload = Boolean(
-          response &&
-          ((typeof response === "object" && Object.keys(response).length > 0) ||
-            (Array.isArray(response) && response.length > 0))
+          normalizedResponse &&
+          ((typeof normalizedResponse === "object" && Object.keys(normalizedResponse).length > 0) ||
+            (Array.isArray(normalizedResponse) && normalizedResponse.length > 0))
         );
         setTrackerProgress(100);
         setTrackerStatus("complete");
