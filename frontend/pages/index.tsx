@@ -200,6 +200,10 @@ export default function Home() {
   useEffect(() => {
     if (activeView === "linkedin") {
       router.push("/linkedin");
+      return;
+    }
+    if (activeView === "naukri") {
+      router.push("/naukri");
     }
   }, [activeView, router]);
 
