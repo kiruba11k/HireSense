@@ -99,7 +99,17 @@ const prettifyValue = (value: any) => {
 const normalize = (value: string) => value.trim() || undefined;
 const normalizeNumber = (value: string) => (value.trim() === "" ? undefined : Number(value));
 const normalizeArray = (values: string[]) => (values.length ? values : undefined);
-const splitCsv = (value: string | undefined) => value ? value.split(",").map((item) => item.trim()).filter(Boolean) : [];
+const splitCsv = (value: string | undefined) => {
+  if (!value) return [];
+
+  const quotedMatches = Array.from(value.matchAll(/"([^"]+)"/g)).map((match) => match[1].trim()).filter(Boolean);
+  if (quotedMatches.length) return quotedMatches;
+
+  return value
+    .split(/\s+OR\s+|,/i)
+    .map((item) => item.replace(/^"|"$/g, "").trim())
+    .filter(Boolean);
+};
 
 const mapWindowToLinkedInTpr = (value: LinkedInWindow) => {
   if (value === "24h") return "r86400";
@@ -211,8 +221,8 @@ export default function LinkedinPage() {
       window: windowFilter,
       limit,
       offset,
-      title_filter: normalize(titleFilters.join(", ")),
-      location_filter: normalize(locationFilters.join(", ")),
+      title_filter: titleFilters.length ? `"${titleFilters.join('" OR "')}"` : undefined,
+      location_filter: locationFilters.length ? locationFilters.map((loc) => `"${loc}"`).join(" OR ") : undefined,
       organization_filter: normalize(organizationFilters.join(", ")),
       description_filter: normalize(descriptionFilters.join(", ")),
       type_filter: normalizeArray(typeFilters),
