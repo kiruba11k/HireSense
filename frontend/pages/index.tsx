@@ -198,6 +198,11 @@ export default function Home() {
   }, [activeView]);
 
   useEffect(() => {
+    const forcedView = router.query.view;
+    if (typeof forcedView === "string" && forcedView) {
+      setActiveView(forcedView);
+      return;
+    }
     if (activeView === "linkedin") {
       router.push("/linkedin");
       return;
@@ -205,7 +210,7 @@ export default function Home() {
     if (activeView === "naukri") {
       router.push("/naukri");
     }
-  }, [activeView, router]);
+  }, [activeView, router, router.query.view]);
 
   useEffect(() => {
     if (window.particlesJS) {
