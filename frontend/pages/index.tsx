@@ -5,12 +5,12 @@ import { useRouter } from "next/router";
 import PremiumSidebar from "../components/PremiumSidebar";
 import TopNavbar from "../components/TopNavbar";
 import PipelineFlow from "../components/PipelineFlow";
-import { startPipeline } from "../services/api";
+import { Stage2RunPayload, startPipeline } from "../services/api";
 import { connectWS } from "../services/websocket";
 
 const AGENT_CONFIG = [
   { id: "linkedin", name: "LinkedIn Job Scraper", icon: "fa-linkedin", fields: ["Company URL", "Role Keywords", "Location"] },
-  { id: "naukri", name: "Naukri Job Scraper", icon: "fa-briefcase", fields: ["Company Name", "Experience Range", "Recency"] },
+  { id: "naukri", name: "Naukri Job Scraper", icon: "fa-briefcase", fields: ["Keywords", "Experience", "Location Filters", "Time Filter"] },
   { id: "interpreter", name: "Hiring Intent Interpreter", icon: "fa-brain", fields: ["Intent Threshold", "Hiring Velocity", "Urgency"] },
   { id: "tech-stack", name: "Tech Stack Detector", icon: "fa-layer-group", fields: ["Domain", "Technologies", "Confidence"] },
   { id: "news", name: "Company News & Events Miner", icon: "fa-newspaper", fields: ["Company", "Time Range", "Event Type"] },
@@ -21,6 +21,20 @@ const AGENT_CONFIG = [
 ];
 
 const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
+const DEFAULT_NAUKRI_KEYWORDS = ["ERP", "SAP", "Cloud", "QA", "Data", "AI"];
+const DEFAULT_FUNCTION_FILTERS = ["ERP", "Cloud", "Data", "QA", "AI"];
+const ALL_FUNCTION_FILTERS = [
+  "ERP",
+  "Cloud",
+  "Data",
+  "QA",
+  "AI",
+  "Finance",
+  "Operations",
+  "Procurement",
+  "Digital Transformation",
+];
+const SENIORITY_OPTIONS = ["Entry Level", "Mid Level", "Senior Level"];
 
 declare global {
   interface Window {
@@ -45,6 +59,17 @@ export default function Home() {
   );
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [naukriKeywordsText, setNaukriKeywordsText] = useState(DEFAULT_NAUKRI_KEYWORDS.join(", "));
+  const [naukriExperience, setNaukriExperience] = useState("5-10 years");
+  const [naukriLocationText, setNaukriLocationText] = useState("Bengaluru, Pune");
+  const [naukriCompanyText, setNaukriCompanyText] = useState("");
+  const [naukriTimeFilter, setNaukriTimeFilter] = useState<"24h" | "7d" | "30d">("7d");
+  const [naukriSeniorityFilter, setNaukriSeniorityFilter] = useState<string[]>(["Mid Level"]);
+  const [naukriFunctionFilter, setNaukriFunctionFilter] = useState<string[]>(DEFAULT_FUNCTION_FILTERS);
+  const [naukriHistoricalWindow, setNaukriHistoricalWindow] = useState(30);
+  const [removeConsultancyDuplicates, setRemoveConsultancyDuplicates] = useState(true);
+  const [excludeIrrelevantRoles, setExcludeIrrelevantRoles] = useState(true);
+  const [deduplicatePostings, setDeduplicatePostings] = useState(true);
 
   const trendRef = useRef<HTMLCanvasElement | null>(null);
   const distributionRef = useRef<HTMLCanvasElement | null>(null);
@@ -65,6 +90,17 @@ export default function Home() {
       if (parsed.theme === "dark" || parsed.theme === "light") setTheme(parsed.theme);
       if (typeof parsed.activeView === "string") setActiveView(parsed.activeView);
       if (typeof parsed.company === "string") setCompany(parsed.company);
+      if (typeof parsed.naukriKeywordsText === "string") setNaukriKeywordsText(parsed.naukriKeywordsText);
+      if (typeof parsed.naukriExperience === "string") setNaukriExperience(parsed.naukriExperience);
+      if (typeof parsed.naukriLocationText === "string") setNaukriLocationText(parsed.naukriLocationText);
+      if (typeof parsed.naukriCompanyText === "string") setNaukriCompanyText(parsed.naukriCompanyText);
+      if (parsed.naukriTimeFilter === "24h" || parsed.naukriTimeFilter === "7d" || parsed.naukriTimeFilter === "30d") setNaukriTimeFilter(parsed.naukriTimeFilter);
+      if (Array.isArray(parsed.naukriSeniorityFilter)) setNaukriSeniorityFilter(parsed.naukriSeniorityFilter);
+      if (Array.isArray(parsed.naukriFunctionFilter)) setNaukriFunctionFilter(parsed.naukriFunctionFilter);
+      if (typeof parsed.naukriHistoricalWindow === "number") setNaukriHistoricalWindow(parsed.naukriHistoricalWindow);
+      if (typeof parsed.removeConsultancyDuplicates === "boolean") setRemoveConsultancyDuplicates(parsed.removeConsultancyDuplicates);
+      if (typeof parsed.excludeIrrelevantRoles === "boolean") setExcludeIrrelevantRoles(parsed.excludeIrrelevantRoles);
+      if (typeof parsed.deduplicatePostings === "boolean") setDeduplicatePostings(parsed.deduplicatePostings);
       if (Array.isArray(parsed.logs)) setLogs(parsed.logs.slice(0, 10));
       if (parsed.agentState && typeof parsed.agentState === "object") setAgentState(parsed.agentState);
     } catch {
@@ -74,8 +110,45 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ theme, activeView, company, logs, agentState }));
-  }, [theme, activeView, company, logs, agentState]);
+    window.sessionStorage.setItem(
+      DASHBOARD_STATE_KEY,
+      JSON.stringify({
+        theme,
+        activeView,
+        company,
+        naukriKeywordsText,
+        naukriExperience,
+        naukriLocationText,
+        naukriCompanyText,
+        naukriTimeFilter,
+        naukriSeniorityFilter,
+        naukriFunctionFilter,
+        naukriHistoricalWindow,
+        removeConsultancyDuplicates,
+        excludeIrrelevantRoles,
+        deduplicatePostings,
+        logs,
+        agentState,
+      })
+    );
+  }, [
+    theme,
+    activeView,
+    company,
+    naukriKeywordsText,
+    naukriExperience,
+    naukriLocationText,
+    naukriCompanyText,
+    naukriTimeFilter,
+    naukriSeniorityFilter,
+    naukriFunctionFilter,
+    naukriHistoricalWindow,
+    removeConsultancyDuplicates,
+    excludeIrrelevantRoles,
+    deduplicatePostings,
+    logs,
+    agentState,
+  ]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -127,6 +200,10 @@ export default function Home() {
   useEffect(() => {
     if (activeView === "linkedin") {
       router.push("/linkedin");
+      return;
+    }
+    if (activeView === "naukri") {
+      router.push("/naukri");
     }
   }, [activeView, router]);
 
@@ -158,7 +235,29 @@ export default function Home() {
     setLogs((prev) => [`${new Date().toLocaleTimeString()} • Starting pipeline for ${company}`, ...prev]);
     setAgentState((prev) => Object.fromEntries(Object.keys(prev).map((key) => [key, "Running"])));
     try {
-      const res = await startPipeline(company);
+      const parseList = (value: string) =>
+        value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+
+      const pipelinePayload: Stage2RunPayload = {
+        company_name: company,
+        company_website: company,
+        jobs: {
+          keywords: parseList(naukriKeywordsText).length ? parseList(naukriKeywordsText) : DEFAULT_NAUKRI_KEYWORDS,
+          experience_level: naukriExperience,
+          locations: parseList(naukriLocationText),
+          company_list: parseList(naukriCompanyText),
+          time_filter: naukriTimeFilter,
+          seniority_filter: naukriSeniorityFilter,
+          function_filter: naukriFunctionFilter,
+          historical_window: naukriHistoricalWindow,
+          exclude_internships: excludeIrrelevantRoles,
+        },
+      };
+
+      const res = await startPipeline(company, pipelinePayload);
       connectWS(res.task_id, (msg: any) => {
         if (msg.type === "done") {
           setRunning(false);
@@ -175,6 +274,9 @@ export default function Home() {
   };
 
   const selectedAgent = agentsWithStatus.find((a) => a.id === activeView);
+  const toggleChoice = (value: string, choices: string[], setChoices: (next: string[]) => void) => {
+    setChoices(choices.includes(value) ? choices.filter((item) => item !== value) : [...choices, value]);
+  };
 
   return (
     <>
@@ -282,7 +384,67 @@ export default function Home() {
             </div>
           )}
 
-          {selectedAgent && selectedAgent.id !== "linkedin" && (
+          {selectedAgent?.id === "naukri" && (
+            <div className="glass-panel agent-workbench mt-3">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h3>Naukri Job Scraper Agent Designer</h3>
+                <span className={`status-badge ${(selectedAgent?.status || "Idle").toLowerCase()}`}>{selectedAgent?.status || "Idle"}</span>
+              </div>
+              <div className="row g-3">
+                <div className="col-xl-6">
+                  <h5>Inputs</h5>
+                  <label className="form-label">Keywords</label>
+                  <input className="form-control neon-input mb-2" value={naukriKeywordsText} onChange={(e) => setNaukriKeywordsText(e.target.value)} placeholder="ERP, SAP, Cloud, QA, Data, AI" />
+                  <label className="form-label">Experience level</label>
+                  <input className="form-control neon-input mb-2" value={naukriExperience} onChange={(e) => setNaukriExperience(e.target.value)} placeholder="e.g., 5-10 years" />
+                  <label className="form-label">Location filters</label>
+                  <input className="form-control neon-input mb-2" value={naukriLocationText} onChange={(e) => setNaukriLocationText(e.target.value)} placeholder="Bengaluru, Pune, Hyderabad" />
+                  <label className="form-label">Company list (optional)</label>
+                  <input className="form-control neon-input mb-2" value={naukriCompanyText} onChange={(e) => setNaukriCompanyText(e.target.value)} placeholder="Acme, Example Corp" />
+                  <label className="form-label">Time filter</label>
+                  <div className="d-flex gap-2 flex-wrap">
+                    {(["24h", "7d", "30d"] as const).map((opt) => (
+                      <button key={opt} className={`chip-btn ${naukriTimeFilter === opt ? "active" : ""}`} onClick={() => setNaukriTimeFilter(opt)} type="button">
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-xl-6">
+                  <h5>Filters / Rules</h5>
+                  <label className="form-label">seniority_filter</label>
+                  <div className="d-flex gap-2 flex-wrap mb-3">
+                    {SENIORITY_OPTIONS.map((opt) => (
+                      <button key={opt} className={`chip-btn ${naukriSeniorityFilter.includes(opt) ? "active" : ""}`} onClick={() => toggleChoice(opt, naukriSeniorityFilter, setNaukriSeniorityFilter)} type="button">
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="form-label">function_filter</label>
+                  <div className="d-flex gap-2 flex-wrap mb-3">
+                    {ALL_FUNCTION_FILTERS.map((opt) => (
+                      <button key={opt} className={`chip-btn ${naukriFunctionFilter.includes(opt) ? "active" : ""}`} onClick={() => toggleChoice(opt, naukriFunctionFilter, setNaukriFunctionFilter)} type="button">
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="form-label">historical_window (days): {naukriHistoricalWindow}</label>
+                  <input type="range" className="form-range mb-3" min={7} max={180} step={1} value={naukriHistoricalWindow} onChange={(e) => setNaukriHistoricalWindow(Number(e.target.value))} />
+
+                  <div className="rule-list">
+                    <label><input type="checkbox" checked={removeConsultancyDuplicates} onChange={(e) => setRemoveConsultancyDuplicates(e.target.checked)} /> Remove consultancy duplicates</label>
+                    <label><input type="checkbox" checked={excludeIrrelevantRoles} onChange={(e) => setExcludeIrrelevantRoles(e.target.checked)} /> Exclude irrelevant roles</label>
+                    <label><input type="checkbox" checked={deduplicatePostings} onChange={(e) => setDeduplicatePostings(e.target.checked)} /> Deduplicate same postings</label>
+                  </div>
+                  <small className="text-secondary d-block mt-2">
+                    Note: backend enforces consultancy/irrelevant/dedupe rules. These toggles control request intent and UI state.
+                  </small>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {selectedAgent && selectedAgent.id !== "linkedin" && selectedAgent.id !== "naukri" && (
             <div className="glass-panel agent-workbench mt-3">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>{selectedAgent.name}</h3>
@@ -376,6 +538,33 @@ export default function Home() {
         .recommendations { padding-left: 1rem; }
         .soft-progress { background: rgba(15, 23, 42, .7); }
         .soft-progress .progress-bar { background: linear-gradient(90deg, #22d3ee, #7c3aed); }
+        .chip-btn {
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.7);
+          color: #e2e8f0;
+          padding: 0.35rem 0.75rem;
+          font-size: 0.82rem;
+        }
+        .chip-btn.active {
+          background: linear-gradient(90deg, rgba(34, 211, 238, 0.35), rgba(124, 58, 237, 0.35));
+          border-color: rgba(34, 211, 238, 0.8);
+        }
+        .rule-list {
+          display: flex;
+          flex-direction: column;
+          gap: .5rem;
+          background: rgba(15, 23, 42, 0.55);
+          border: 1px solid rgba(148, 163, 184, 0.25);
+          border-radius: .75rem;
+          padding: .75rem;
+        }
+        .rule-list label {
+          display: flex;
+          gap: .5rem;
+          align-items: center;
+          font-size: .9rem;
+        }
         .log-panel { padding: 1rem; display: grid; gap: .4rem; }
         .log-panel code { color: #67e8f9; background: rgba(2,6,23,.7); padding: .45rem .6rem; border-radius: .5rem; }
         .agent-workbench { padding: 1rem; }

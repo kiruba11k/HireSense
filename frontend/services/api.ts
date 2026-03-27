@@ -58,10 +58,35 @@ export type LinkedInSearchPayload = {
   extra_query_params?: Record<string, string | number | boolean>;
 };
 
-export const startPipeline = async (companyUrl: string) => {
+export type JobSearchPayload = {
+  keywords: string[];
+  locations: string[];
+  experience_level?: string;
+  company_list?: string[];
+  time_filter: "24h" | "7d" | "30d";
+  seniority_filter?: string[];
+  function_filter?: string[];
+  historical_window?: number;
+  exclude_internships?: boolean;
+};
+
+export type Stage2RunPayload = {
+  company_name: string;
+  company_website?: string;
+  jobs: JobSearchPayload;
+};
+
+export const startPipeline = async (companyUrl: string, payload?: Stage2RunPayload) => {
   const apiBase = resolveApiBase();
-  const res = await fetch(`${apiBase}/run?company=${companyUrl}`, {
+  const targetUrl = payload ? `${apiBase}/run` : `${apiBase}/run?company=${companyUrl}`;
+  const res = await fetch(targetUrl, {
     method: "POST",
+    headers: payload
+      ? {
+          "Content-Type": "application/json",
+        }
+      : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
   });
   return res.json();
 };
