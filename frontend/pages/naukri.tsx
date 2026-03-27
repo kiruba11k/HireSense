@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { KeyboardEvent, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { motion } from "../lib/framer-motion";
@@ -31,6 +31,16 @@ const parseList = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+const EXPERIENCE_OPTIONS = [
+  "0-1 years",
+  "1-3 years",
+  "3-5 years",
+  "5-8 years",
+  "8-12 years",
+  "12-16 years",
+  "16+ years",
+];
+
 const cardAnimation = {
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0 },
@@ -41,10 +51,12 @@ export default function NaukriPage() {
   const router = useRouter();
   const socketRef = useRef<WebSocket | null>(null);
 
-  const [companyName, setCompanyName] = useState("stripe.com");
-  const [keywords, setKeywords] = useState(DEFAULT_KEYWORDS.join(", "));
-  const [experienceLevel, setExperienceLevel] = useState("5-10 years");
-  const [locations, setLocations] = useState("Bengaluru, Pune");
+  const [companyName, setCompanyName] = useState("");
+  const [keywords, setKeywords] = useState<string[]>(DEFAULT_KEYWORDS);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [experienceLevel, setExperienceLevel] = useState<string[]>(["5-8 years"]);
+  const [locations, setLocations] = useState<string[]>(["Bengaluru", "Pune"]);
+  const [locationInput, setLocationInput] = useState("");
   const [companyList, setCompanyList] = useState("");
   const [timeFilter, setTimeFilter] = useState<"24h" | "7d" | "30d">("7d");
   const [seniorityFilter, setSeniorityFilter] = useState<string[]>(["Mid Level"]);
@@ -61,10 +73,28 @@ export default function NaukriPage() {
   const [logs, setLogs] = useState<string[]>(["Ready to run Naukri agent."]);
   const [summary, setSummary] = useState<{ jobs: number; spikes: number; recruiterSignals: number } | null>(null);
 
-  const canRun = useMemo(() => companyName.trim().length > 0 && parseList(locations).length > 0, [companyName, locations]);
+  const canRun = useMemo(() => locations.length > 0 && keywords.length > 0, [locations, keywords]);
 
   const toggleChoice = (value: string, choices: string[], setChoices: (next: string[]) => void) => {
     setChoices(choices.includes(value) ? choices.filter((item) => item !== value) : [...choices, value]);
+  };
+
+  const addMultiValue = (rawValue: string, values: string[], setValues: (next: string[]) => void) => {
+    const next = rawValue.trim();
+    if (!next || values.includes(next)) return;
+    setValues([...values, next]);
+  };
+
+  const onInputKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+    values: string[],
+    setValues: (next: string[]) => void,
+    clearInput: () => void
+  ) => {
+    if (event.key !== "Enter" && event.key !== ",") return;
+    event.preventDefault();
+    addMultiValue((event.currentTarget as HTMLInputElement).value, values, setValues);
+    clearInput();
   };
 
   const navigateDashboard = () => {
@@ -94,13 +124,14 @@ export default function NaukriPage() {
 
     setLogs((prev) => [`${new Date().toLocaleTimeString()} • Starting Naukri pipeline`, ...prev].slice(0, 15));
 
+    const effectiveCompany = companyName.trim() || "general-market";
     const payload: Stage2RunPayload = {
-      company_name: companyName,
-      company_website: companyName,
+      company_name: effectiveCompany,
+      company_website: companyName.trim() || undefined,
       jobs: {
-        keywords: parseList(keywords).length ? parseList(keywords) : DEFAULT_KEYWORDS,
-        locations: parseList(locations),
-        experience_level: `${experienceLevel} | mode=${workModes.join("/")} | type=${employmentTypes.join("/")} | salary=${requireSalaryMention ? "required" : "any"}`,
+        keywords: keywords.length ? keywords : DEFAULT_KEYWORDS,
+        locations,
+        experience_level: `${experienceLevel.join(", ")} | mode=${workModes.join("/")} | type=${employmentTypes.join("/")} | salary=${requireSalaryMention ? "required" : "any"}`,
         company_list: parseList(companyList),
         time_filter: timeFilter,
         seniority_filter: seniorityFilter,
@@ -111,7 +142,7 @@ export default function NaukriPage() {
     };
 
     try {
-      const start = await startPipeline(companyName, payload);
+      const start = await startPipeline(effectiveCompany, payload);
       setTaskId(start.task_id);
 
       socketRef.current = connectWS(start.task_id, (msg: any) => {
@@ -157,20 +188,63 @@ export default function NaukriPage() {
             <motion.div className="card h-100 border-0 shadow-sm" {...cardAnimation}>
               <div className="card-body">
                 <h5>Search Inputs</h5>
-                <label className="form-label mt-2">Company / Domain</label>
-                <input className="form-control mb-2" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="company domain or name" />
+                <label className="form-label mt-2">Company / Domain (optional)</label>
+                <input className="form-control mb-2" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="company domain or name (optional)" />
 
                 <label className="form-label">Keywords</label>
-                <input className="form-control mb-2" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="ERP, SAP, Cloud, QA, Data, AI" />
+                <div className="chip-wrap mb-2">
+                  {keywords.map((value) => (
+                    <button key={value} type="button" className="chip" onClick={() => setKeywords(keywords.filter((item) => item !== value))}>
+                      {value} ×
+                    </button>
+                  ))}
+                  <input
+                    className="chip-input"
+                    value={keywordInput}
+                    onChange={(e) => setKeywordInput(e.target.value)}
+                    onKeyDown={(e) => onInputKeyDown(e, keywords, setKeywords, () => setKeywordInput(""))}
+                    onBlur={() => {
+                      addMultiValue(keywordInput, keywords, setKeywords);
+                      setKeywordInput("");
+                    }}
+                    placeholder="Type keyword and press Enter"
+                  />
+                </div>
 
                 <div className="row g-2">
                   <div className="col-md-6">
                     <label className="form-label">Experience</label>
-                    <input className="form-control mb-2" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)} placeholder="e.g., 5-10 years" />
+                    <select
+                      className="form-select mb-2"
+                      multiple
+                      value={experienceLevel}
+                      onChange={(e) => setExperienceLevel(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+                    >
+                      {EXPERIENCE_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">Locations</label>
-                    <input className="form-control mb-2" value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="Bengaluru, Pune, Hyderabad" />
+                    <div className="chip-wrap mb-2">
+                      {locations.map((value) => (
+                        <button key={value} type="button" className="chip" onClick={() => setLocations(locations.filter((item) => item !== value))}>
+                          {value} ×
+                        </button>
+                      ))}
+                      <input
+                        className="chip-input"
+                        value={locationInput}
+                        onChange={(e) => setLocationInput(e.target.value)}
+                        onKeyDown={(e) => onInputKeyDown(e, locations, setLocations, () => setLocationInput(""))}
+                        onBlur={() => {
+                          addMultiValue(locationInput, locations, setLocations);
+                          setLocationInput("");
+                        }}
+                        placeholder="Add location and press Enter"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -232,22 +306,28 @@ export default function NaukriPage() {
                 <h5>Filters / Rules</h5>
 
                 <label className="form-label mt-2">Seniority</label>
-                <div className="d-flex gap-2 flex-wrap mb-2">
+                <select
+                  className="form-select mb-2"
+                  multiple
+                  value={seniorityFilter}
+                  onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+                >
                   {SENIORITY_OPTIONS.map((opt) => (
-                    <button key={opt} className={`btn btn-sm ${seniorityFilter.includes(opt) ? "btn-dark" : "btn-outline-dark"}`} type="button" onClick={() => toggleChoice(opt, seniorityFilter, setSeniorityFilter)}>
-                      {opt}
-                    </button>
+                    <option key={opt} value={opt}>{opt}</option>
                   ))}
-                </div>
+                </select>
 
                 <label className="form-label">Function</label>
-                <div className="d-flex gap-2 flex-wrap mb-2">
+                <select
+                  className="form-select mb-2"
+                  multiple
+                  value={functionFilter}
+                  onChange={(e) => setFunctionFilter(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+                >
                   {ALL_FUNCTION_FILTERS.map((opt) => (
-                    <button key={opt} className={`btn btn-sm ${functionFilter.includes(opt) ? "btn-info" : "btn-outline-info"}`} type="button" onClick={() => toggleChoice(opt, functionFilter, setFunctionFilter)}>
-                      {opt}
-                    </button>
+                    <option key={opt} value={opt}>{opt}</option>
                   ))}
-                </div>
+                </select>
 
                 <label className="form-label">Historical window (days): {historicalWindow}</label>
                 <input type="range" className="form-range mb-2" min={7} max={180} value={historicalWindow} onChange={(e) => setHistoricalWindow(Number(e.target.value))} />
@@ -310,6 +390,30 @@ export default function NaukriPage() {
           border-radius: 8px;
           padding: 10px;
           background: #f8fafc;
+        }
+        .chip-wrap {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          border: 1px solid #ced4da;
+          border-radius: 6px;
+          min-height: 42px;
+          padding: 6px;
+          align-items: center;
+        }
+        .chip {
+          border: 1px solid #dbeafe;
+          background: #eff6ff;
+          color: #1e40af;
+          border-radius: 999px;
+          padding: 2px 10px;
+          font-size: 12px;
+        }
+        .chip-input {
+          border: 0;
+          outline: none;
+          min-width: 180px;
+          flex: 1;
         }
       `}</style>
     </>
