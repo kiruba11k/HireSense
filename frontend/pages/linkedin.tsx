@@ -406,7 +406,7 @@ export default function LinkedinPage() {
     try {
       setTrackerMessage("Fetching jobs from RapidAPI LinkedIn endpoint…");
       const response = await searchLinkedInJobs(payloadPreview);
-      const parsedJobs = parseJobs(response);
+      const parsedJobs = parseJobs(response.data);
       setTrackerMessage("Parsing and streaming live job updates…");
       setTrackerProgress(84);
       setJobs(parsedJobs);
