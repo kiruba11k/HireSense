@@ -43,6 +43,8 @@ export default function Home() {
   const [agentState, setAgentState] = useState<Record<string, string>>(
     Object.fromEntries(AGENT_CONFIG.map((a, idx) => [a.id, idx < 2 ? "Running" : "Idle"]))
   );
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const trendRef = useRef<HTMLCanvasElement | null>(null);
   const distributionRef = useRef<HTMLCanvasElement | null>(null);
@@ -139,6 +141,17 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    const syncLayout = () => setIsMobileLayout(window.innerWidth < 1100);
+    syncLayout();
+    window.addEventListener("resize", syncLayout);
+    return () => window.removeEventListener("resize", syncLayout);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileLayout) setMobileSidebarOpen(false);
+  }, [isMobileLayout]);
+
   const runPipeline = async () => {
     if (!company) return;
     setRunning(true);
@@ -177,10 +190,18 @@ export default function Home() {
 
       <main className={`app-shell ${theme}`}>
         <div id="particles-js" />
-        <PremiumSidebar activeView={activeView} setActiveView={setActiveView} agents={agentsWithStatus} />
+        <PremiumSidebar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          agents={agentsWithStatus}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
+          isMobile={isMobileLayout}
+        />
+        {isMobileLayout && mobileSidebarOpen && <button className="mobile-sidebar-backdrop" onClick={() => setMobileSidebarOpen(false)} aria-label="Close menu overlay" />}
 
         <section className="main-content">
-          <TopNavbar theme={theme} setTheme={setTheme} />
+          <TopNavbar theme={theme} setTheme={setTheme} onMenuToggle={() => setMobileSidebarOpen((prev) => !prev)} />
 
           <div className="hero glass-panel mb-3">
             <div>
@@ -316,14 +337,17 @@ export default function Home() {
         .glass-panel { background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255, 255, 255, 0.13); backdrop-filter: blur(14px); border-radius: 1rem; box-shadow: 0 10px 36px rgba(4, 6, 20, 0.4); }
         .premium-sidebar { width: 320px; z-index: 2; margin: 1rem; padding: 1rem; transition: width .25s ease; overflow-y: auto; }
         .premium-sidebar.collapsed { width: 96px; }
+        .mobile-sidebar-backdrop { display: none; }
         .brand-row { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
         .brand-mark { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #22d3ee, #7c3aed); display: grid; place-items: center; font-weight: 700; }
         .collapse-btn { margin-left: auto; border: none; background: transparent; color: #9ca3af; }
+        .mobile-close-btn { display: none; }
         .section-label { text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; color: #94a3b8; margin: 1rem 0 .6rem; }
         .nav-btn { width: 100%; border: 1px solid transparent; margin-bottom: .4rem; border-radius: .75rem; background: rgba(30, 41, 59, 0.45); color: inherit; padding: .65rem .8rem; display: flex; align-items: center; gap: .7rem; transition: all .2s; }
         .nav-btn:hover, .nav-btn.active { border-color: rgba(34, 211, 238, 0.6); box-shadow: 0 0 24px rgba(34, 211, 238, 0.2); transform: translateX(3px); }
         .nav-btn small { margin-left: auto; font-size: .65rem; }
         .top-nav { display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem; margin-bottom: 1rem; }
+        .mobile-menu-btn { display: none; }
         .search-wrap { width: min(560px, 100%); display: flex; align-items: center; gap: .5rem; padding: .5rem .8rem; border-radius: .75rem; background: rgba(2, 6, 23, .5); }
         .search-wrap input { background: transparent; border: none; color: inherit; width: 100%; outline: none; }
         .nav-actions { display: flex; align-items: center; gap: .5rem; }
@@ -366,12 +390,43 @@ export default function Home() {
         .neon-input { background-color: rgba(2,6,23,.58) !important; border-color: rgba(125,211,252,.36); color: inherit !important; }
         .badge-dot.running { color: #22d3ee; }
         .badge-dot.completed { color: #22c55e; }
+        @media (max-width: 1400px) {
+          .pipeline-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .hero h2 { font-size: 1.35rem; }
+        }
         @media (max-width: 1100px) {
-          .premium-sidebar { position: fixed; left: 0; top: 0; bottom: 0; }
-          .main-content { margin-left: 110px; }
+          .premium-sidebar { position: fixed; left: 0; top: 0; bottom: 0; margin: 0; border-radius: 0; transform: translateX(-100%); transition: transform .25s ease, width .25s ease; width: min(88vw, 320px); max-width: 320px; }
+          .premium-sidebar.mobile-open { transform: translateX(0); }
+          .main-content { margin-left: 0; padding: .9rem; }
+          .mobile-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 1; border: none; background: rgba(2, 6, 23, .56); }
+          .mobile-menu-btn { display: inline-grid; place-items: center; }
+          .mobile-close-btn { display: inline-block; margin-top: .85rem; width: 100%; border-radius: .75rem; padding: .6rem .8rem; border: 1px solid rgba(148,163,184,.35); background: rgba(15,23,42,.6); }
           .hero { flex-direction: column; align-items: stretch; }
-          .hero-actions { flex-wrap: wrap; }
+          .hero-actions { flex-wrap: wrap; width: 100%; }
+          .hero-actions input { min-width: 0; flex: 1; }
+          .hero-actions .run-btn { width: 100%; }
           .pipeline-grid { grid-template-columns: 1fr; }
+          .top-nav { gap: .7rem; align-items: stretch; }
+          .search-wrap { width: 100%; }
+          .nav-actions { width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+          .profile-btn { margin-left: auto; }
+        }
+        @media (max-width: 768px) {
+          .main-content { padding: .75rem; }
+          .hero, .glass-panel, .chart-panel, .log-panel, .agent-workbench { padding: .85rem; }
+          .top-nav { padding: .75rem; }
+          .profile-btn strong { font-size: .86rem; }
+          .profile-btn small { font-size: .72rem; }
+          .score-ring { width: 96px; height: 96px; font-size: 1.6rem; border-width: 6px; }
+          .agent-workbench .d-flex { flex-direction: column; align-items: flex-start !important; gap: .6rem; }
+          .agent-workbench .nav.nav-pills { flex-wrap: wrap; gap: .35rem; }
+        }
+        @media (max-width: 576px) {
+          .nav-actions { justify-content: space-between; }
+          .icon-btn { width: 34px; height: 34px; }
+          .profile-btn { width: 100%; justify-content: space-between; padding: .5rem .65rem; }
+          .kpi-card strong { font-size: 1.2rem; }
+          .output-box { min-height: 110px; font-size: .88rem; }
         }
       `}</style>
     </>

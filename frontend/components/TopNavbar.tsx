@@ -1,11 +1,15 @@
 type Props = {
   theme: "dark" | "light";
   setTheme: (theme: "dark" | "light") => void;
+  onMenuToggle?: () => void;
 };
 
-export default function TopNavbar({ theme, setTheme }: Props) {
+export default function TopNavbar({ theme, setTheme, onMenuToggle }: Props) {
   return (
     <div className="top-nav glass-panel">
+      <button className="icon-btn mobile-menu-btn" onClick={onMenuToggle} title="Open menu">
+        <i className="fa-solid fa-bars" />
+      </button>
       <div className="search-wrap">
         <i className="fa-solid fa-magnifying-glass" />
         <input placeholder="Search company, agent, signal..." />
