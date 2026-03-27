@@ -228,6 +228,7 @@ const buildLinkedInJobSearchUrl = (payload: LinkedInSearchPayload) => {
 
 export default function LinkedinPage() {
   const router = useRouter();
+  const [viewportWidth, setViewportWidth] = useState(1200);
   const [windowFilter, setWindowFilter] = useState<LinkedInWindow>("24h");
   const [limit, setLimit] = useState(50);
   const [offset, setOffset] = useState(0);
@@ -302,7 +303,16 @@ export default function LinkedinPage() {
     ]
   );
 
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const queryUrl = useMemo(() => buildLinkedInJobSearchUrl(payloadPreview), [payloadPreview]);
+  const isTablet = viewportWidth <= 1024;
+  const isMobile = viewportWidth <= 768;
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
     streamedJobs.forEach((job) => {
@@ -571,14 +581,14 @@ export default function LinkedinPage() {
         <title>LinkedIn Job Search Dashboard | HireSense</title>
       </Head>
 
-      <main style={shellStyle}>
-        <section style={contentStyle}>
-          <motion.header style={navbarStyle} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <main style={{ ...shellStyle, flexDirection: isTablet ? "column" : "row" }}>
+        <section style={{ ...contentStyle, padding: isMobile ? "18px 12px 28px" : contentStyle.padding, maxWidth: isTablet ? "100%" : contentStyle.maxWidth, margin: "0 auto" }}>
+          <motion.header style={{ ...navbarStyle, padding: isMobile ? "12px" : navbarStyle.padding }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div>
               <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={backBtnStyle} onClick={backToDashboard}>← Back to main dashboard</motion.button>
               <h2 style={{ margin: "8px 0 0", fontSize: "1.1rem" }}>LinkedIn Job Search Query Builder</h2>
             </div>
-            <div style={navActionsStyle}>
+            <div style={{ ...navActionsStyle, flexWrap: "wrap" }}>
               <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={saveCurrentSearch}>Save search</motion.button>
               <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={exportFilters}>Export filters</motion.button>
             </div>
@@ -730,8 +740,8 @@ export default function LinkedinPage() {
             <h3 style={sectionTitle}>Live JSON Output ({streamedJobs.length})</h3>
             {!streamedJobs.length && <p style={emptyTextStyle}>No rows streamed yet.</p>}
             {streamedJobs.length > 0 && (
-              <div style={tableWrapStyle}>
-                <table style={tableStyle}>
+                  <div style={tableWrapStyle}>
+                <table style={{ ...tableStyle, minWidth: isMobile ? 620 : tableStyle.minWidth }}>
                   <thead>
                     <tr>
                       {dynamicColumns.map((column) => (

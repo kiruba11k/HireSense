@@ -4,9 +4,12 @@ type Props = {
   activeView: string;
   setActiveView: Dispatch<SetStateAction<string>>;
   agents: { id: string; name: string; icon: string; status: string }[];
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+  isMobile?: boolean;
 };
 
-export default function PremiumSidebar({ activeView, setActiveView, agents }: Props) {
+export default function PremiumSidebar({ activeView, setActiveView, agents, mobileOpen = false, onMobileClose, isMobile = false }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = useMemo(
@@ -20,7 +23,7 @@ export default function PremiumSidebar({ activeView, setActiveView, agents }: Pr
   );
 
   return (
-    <aside className={`premium-sidebar glass-panel ${collapsed ? "collapsed" : ""}`}>
+    <aside className={`premium-sidebar glass-panel ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       <div className="brand-row">
         <div className="brand-mark">HS</div>
         {!collapsed && (
@@ -39,7 +42,10 @@ export default function PremiumSidebar({ activeView, setActiveView, agents }: Pr
         <button
           key={item.id}
           className={`nav-btn ${activeView === item.id ? "active" : ""}`}
-          onClick={() => setActiveView(item.id)}
+          onClick={() => {
+            setActiveView(item.id);
+            if (isMobile) onMobileClose?.();
+          }}
           title={item.label}
         >
           <i className={`fa-solid ${item.icon}`} />
@@ -53,7 +59,10 @@ export default function PremiumSidebar({ activeView, setActiveView, agents }: Pr
           <button
             key={agent.id}
             className={`nav-btn ${activeView === agent.id ? "active" : ""}`}
-            onClick={() => setActiveView(agent.id)}
+            onClick={() => {
+              setActiveView(agent.id);
+              if (isMobile) onMobileClose?.();
+            }}
             title={agent.name}
           >
             <i className={`fa-solid ${agent.icon}`} />
@@ -66,6 +75,11 @@ export default function PremiumSidebar({ activeView, setActiveView, agents }: Pr
           </button>
         ))}
       </div>
+      {isMobile && (
+        <button className="collapse-btn mobile-close-btn" onClick={onMobileClose} aria-label="Close menu">
+          <i className="fa-solid fa-xmark" />
+        </button>
+      )}
     </aside>
   );
 }
