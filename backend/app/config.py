@@ -4,8 +4,8 @@ import os
 class Settings:
     DATABASE_URL = os.getenv("DATABASE_URL")
     ENV = os.getenv("ENV", "dev")
-    LINKEDIN_RAPIDAPI_HOST = os.getenv("LINKEDIN_RAPIDAPI_HOST", "linkedin-job-search-api.p.rapidapi.com")
-    LINKEDIN_RAPIDAPI_KEY = os.getenv("LINKEDIN_RAPIDAPI_KEY")
+    LINKEDIN_APIFY_ACTOR_ID = os.getenv("LINKEDIN_APIFY_ACTOR_ID", "curious_coder~linkedin-jobs-scraper")
+    LINKEDIN_APIFY_TOKEN = os.getenv("LINKEDIN_APIFY_TOKEN")
     CORS_ALLOW_ORIGINS = [
         origin.strip()
         for origin in os.getenv(
