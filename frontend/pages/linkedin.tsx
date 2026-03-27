@@ -474,7 +474,7 @@ export default function LinkedinPage() {
     }, 600);
 
     try {
-      setTrackerMessage("Fetching jobs from RapidAPI LinkedIn endpoint…");
+      setTrackerMessage("Fetching jobs from  LinkedIn…");
       const response = await searchLinkedInJobs(payloadPreview);
 
       console.log("====== DEBUG START ======");
@@ -675,7 +675,7 @@ export default function LinkedinPage() {
               <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h3 style={sectionTitle}>Preview LinkedIn URL (manual use only)</h3>
                 <p style={{ margin: "0 0 10px", color: "#93c5fd", fontSize: "0.9rem" }}>
-                  This URL is display-only for manual review. Job fetches use the backend RapidAPI endpoint.
+                  This URL is display-only for manual review.
                 </p>
                 <code style={queryStyle}>{queryUrl}</code>
                 {error && <p style={{ color: "#fca5a5", marginTop: 12 }}>{error}</p>}
