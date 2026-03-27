@@ -2,7 +2,7 @@ import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } fro
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { motion } from "framer-motion";
-import { LinkedInSearchPayload, LinkedInWindow, exportLinkedInJobsCsv, searchLinkedInJobs } from "../services/api";
+import { LinkedInSearchPayload, LinkedInWindow, searchLinkedInJobs } from "../services/api";
 
 type JobCard = {
   id: string;
@@ -42,6 +42,21 @@ const jobTypeOptions = ["Full-time", "Part-time", "Contract", "Temporary", "Inte
 const FILTERS_KEY = "hiresense.linkedin.saved_filters";
 const FORM_KEY = "hiresense.linkedin.form_state";
 const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
+const CSV_EXPORT_COLUMNS = [
+  "id",
+  "companyName",
+  "title",
+  "seniorityLevel",
+  "employmentType",
+  "jobFunction",
+  "location",
+  "link",
+  "postedAt",
+  "postedAtTimestamp",
+  "descriptionText",
+  "descriptionHtml",
+  "scraped_timestamp",
+] as const;
 
 const parseJobs = (payload: any): JobCard[] => {
   let data = payload;
@@ -83,6 +98,36 @@ const parseJobs = (payload: any): JobCard[] => {
   }
 
   return [];
+};
+
+const uniqueJobs = (jobs: JobCard[]) => {
+  const seen = new Set<string>();
+  return jobs.filter((job) => {
+    const key = [job.raw?.id || job.id, job.raw?.trackingId || "", job.raw?.link || job.url, job.raw?.title || job.title, job.raw?.companyName || job.company, job.raw?.location || job.location]
+      .join("|")
+      .toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const csvCell = (value: unknown) => {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, "\"\"")}"`;
+};
+
+const buildCsvFromJobs = (jobs: JobCard[]) => {
+  const now = new Date().toISOString();
+  const lines: string[] = [CSV_EXPORT_COLUMNS.join(",")];
+  for (const job of jobs) {
+    const row = CSV_EXPORT_COLUMNS.map((column) => {
+      if (column === "scraped_timestamp") return csvCell(now);
+      return csvCell(job.raw?.[column] ?? "");
+    });
+    lines.push(row.join(","));
+  }
+  return lines.join("\n");
 };
 
 const prettifyValue = (value: any) => {
@@ -261,9 +306,9 @@ export default function LinkedinPage() {
   const dynamicColumns = useMemo(() => {
     const keys = new Set<string>();
     streamedJobs.forEach((job) => {
-      Object.keys(job.raw || {}).forEach((key) => keys.add(key));
+      CSV_EXPORT_COLUMNS.forEach((key) => keys.add(key));
     });
-    return Array.from(keys).sort((a, b) => a.localeCompare(b));
+    return Array.from(keys);
   }, [streamedJobs]);
 
   useEffect(() => {
@@ -381,9 +426,14 @@ export default function LinkedinPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportJobsCsv = async () => {
+  const exportJobsCsv = () => {
+    if (!jobs.length) {
+      setError("Run a search first to download CSV.");
+      return;
+    }
     try {
-      const blob = await exportLinkedInJobsCsv(payloadPreview);
+      const csvText = buildCsvFromJobs(jobs);
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -443,7 +493,7 @@ export default function LinkedinPage() {
       }
 
       // 🔥 final parse
-      const parsedJobs = parseJobs(normalized);
+      const parsedJobs = uniqueJobs(parseJobs(normalized));
       setTrackerMessage("Parsing and streaming live job updates…");
       setTrackerProgress(84);
       setJobs(parsedJobs);
@@ -522,29 +572,20 @@ export default function LinkedinPage() {
       </Head>
 
       <main style={shellStyle}>
-        <aside style={sidebarStyle}>
-          <h2 style={logoStyle}>HireSense</h2>
-          {["Dashboard", "Search", "Pipelines", "Campaigns", "Exports"].map((item) => (
-            <motion.button key={item} whileHover={{ scale: 1.04 }} style={sideItemStyle} type="button">
-              {item}
-            </motion.button>
-          ))}
-        </aside>
-
         <section style={contentStyle}>
           <motion.header style={navbarStyle} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div>
-              <button type="button" style={backBtnStyle} onClick={backToDashboard}>← Back to main dashboard</button>
+              <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={backBtnStyle} onClick={backToDashboard}>← Back to main dashboard</motion.button>
               <h2 style={{ margin: "8px 0 0", fontSize: "1.1rem" }}>LinkedIn Job Search Query Builder</h2>
             </div>
             <div style={navActionsStyle}>
-              <button type="button" style={navBtnStyle} onClick={saveCurrentSearch}>Save search</button>
-              <button type="button" style={navBtnStyle} onClick={exportFilters}>Export filters</button>
+              <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={saveCurrentSearch}>Save search</motion.button>
+              <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={exportFilters}>Export filters</motion.button>
             </div>
           </motion.header>
 
           <div style={menuRowStyle}>
-            {["Search Builder", "Saved Filters", "Campaigns", "Talent Pipelines", "Exports"].map((item) => (
+            {["Search Builder", "Saved Filters", "Exports"].map((item) => (
               <motion.button key={item} whileHover={{ y: -2 }} type="button" onClick={() => setActiveTab(item)} style={{ ...tabBtnStyle, ...(activeTab === item ? tabBtnActiveStyle : {}) }}>
                 {item}
               </motion.button>
@@ -618,7 +659,7 @@ export default function LinkedinPage() {
                   <label><input type="checkbox" checked={showSalary} onChange={(e) => setShowSalary(e.target.checked)} /> Salary listed</label>
                 </div>
 
-                <button type="submit" disabled={loading} style={submitStyle}>{loading ? "Searching..." : "Search"}</button>
+                <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="submit" disabled={loading} style={submitStyle}>{loading ? "Searching..." : "Search"}</motion.button>
               </motion.form>
 
               <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -641,14 +682,16 @@ export default function LinkedinPage() {
                     Status: <strong>{trackerStatus === "running" ? "Running" : trackerStatus === "complete" ? "Complete" : trackerStatus === "error" ? "Error" : "Idle"}</strong>
                     {completedAt ? ` • Completed ${new Date(completedAt).toLocaleTimeString()}` : ""}
                   </span>
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    whileHover={{ y: -1 }}
                     type="button"
                     style={{ ...navBtnStyle, opacity: trackerStatus === "complete" ? 1 : 0.5, cursor: trackerStatus === "complete" ? "pointer" : "not-allowed" }}
                     onClick={exportJobsCsv}
                     disabled={trackerStatus !== "complete"}
                   >
                     Download CSV
-                  </button>
+                  </motion.button>
                 </div>
               </motion.section>
             </>
@@ -665,35 +708,11 @@ export default function LinkedinPage() {
                     <p style={metaStyle}>Saved: {new Date(item.savedAt).toLocaleString()}</p>
                   </div>
                   <div style={navActionsStyle}>
-                    <button style={navBtnStyle} onClick={() => applySavedFilter(item.id)}>Apply</button>
-                    <button style={navBtnStyle} onClick={() => removeSavedFilter(item.id)}>Delete</button>
+                    <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} style={navBtnStyle} onClick={() => applySavedFilter(item.id)}>Apply</motion.button>
+                    <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} style={navBtnStyle} onClick={() => removeSavedFilter(item.id)}>Delete</motion.button>
                   </div>
                 </div>
               ))}
-            </section>
-          )}
-
-          {activeTab === "Campaigns" && (
-            <section style={panelStyle}>
-              <h3 style={sectionTitle}>Campaigns</h3>
-              <p style={metaStyle}>Active campaign is generated from your current filters and job results.</p>
-              <ul>
-                <li>Campaign Name: {titleFilters.join(", ") || "General LinkedIn Search"}</li>
-                <li>Target Location: {locationFilters.join(", ") || "Any"}</li>
-                <li>Current Reach: {jobs.length} jobs</li>
-              </ul>
-            </section>
-          )}
-
-          {activeTab === "Talent Pipelines" && (
-            <section style={panelStyle}>
-              <h3 style={sectionTitle}>Talent Pipelines</h3>
-              <p style={metaStyle}>Pipeline groups update from the latest fetched jobs.</p>
-              <ul>
-                <li>Hot Leads: {Math.floor(jobs.length * 0.4)}</li>
-                <li>Review Queue: {Math.floor(jobs.length * 0.35)}</li>
-                <li>Long-term Nurture: {Math.ceil(jobs.length * 0.25)}</li>
-              </ul>
             </section>
           )}
 
@@ -701,8 +720,8 @@ export default function LinkedinPage() {
             <section style={panelStyle}>
               <h3 style={sectionTitle}>Exports</h3>
               <div style={navActionsStyle}>
-                <button type="button" style={navBtnStyle} onClick={exportFilters}>Export filters JSON</button>
-                <button type="button" style={navBtnStyle} onClick={exportJobsCsv}>Export jobs CSV</button>
+                <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={exportFilters}>Export filters JSON</motion.button>
+                <motion.button whileTap={{ scale: 0.97 }} whileHover={{ y: -1 }} type="button" style={navBtnStyle} onClick={exportJobsCsv}>Export jobs CSV</motion.button>
               </div>
             </section>
           )}
