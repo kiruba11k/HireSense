@@ -14,6 +14,10 @@ class Settings:
         ).split(",")
         if origin.strip()
     ]
+    CORS_ALLOW_ORIGIN_REGEX = os.getenv(
+        "CORS_ALLOW_ORIGIN_REGEX",
+        r"https://hiresense-frontend.*\\.onrender\\.com",
+    )
 
 
 settings = Settings()
