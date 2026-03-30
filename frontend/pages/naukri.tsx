@@ -52,11 +52,12 @@ type MultiSelectPillsProps = {
   selected: string[];
   onToggle: (value: string) => void;
   helperText?: string;
+  tone?: "experience" | "seniority" | "function";
 };
 
-function MultiSelectPills({ options, selected, onToggle, helperText }: MultiSelectPillsProps) {
+function MultiSelectPills({ options, selected, onToggle, helperText, tone = "experience" }: MultiSelectPillsProps) {
   return (
-    <div className="multi-select mb-2">
+    <div className={`multi-select multi-select--${tone} mb-2`}>
       <div className="multi-select-header">
         <span className="text-secondary small">{selected.length} selected</span>
         {selected.length > 0 && (
@@ -273,6 +274,7 @@ export default function NaukriPage() {
                       selected={experienceLevel}
                       onToggle={(value) => toggleChoice(value, experienceLevel, setExperienceLevel)}
                       helperText="Choose one or more experience ranges."
+                      tone="experience"
                     />
                   </div>
                   <div className="col-md-6">
@@ -361,6 +363,7 @@ export default function NaukriPage() {
                   selected={seniorityFilter}
                   onToggle={(value) => toggleChoice(value, seniorityFilter, setSeniorityFilter)}
                   helperText="Pick matching seniority buckets for the role."
+                  tone="seniority"
                 />
 
                 <label className="form-label">Function</label>
@@ -369,6 +372,7 @@ export default function NaukriPage() {
                   selected={functionFilter}
                   onToggle={(value) => toggleChoice(value, functionFilter, setFunctionFilter)}
                   helperText="Select all relevant job functions."
+                  tone="function"
                 />
 
                 <label className="form-label">Historical window (days): {historicalWindow}</label>
@@ -458,10 +462,37 @@ export default function NaukriPage() {
           flex: 1;
         }
         .multi-select {
+          --ms-accent: #1d4ed8;
+          --ms-accent-soft: #dbeafe;
+          --ms-selected-bg: #eff6ff;
+          --ms-selected-border: #93c5fd;
+          --ms-surface: linear-gradient(135deg, #f8fbff 0%, #eef8ff 100%);
           border: 1px solid #d9e2ec;
           border-radius: 10px;
           padding: 10px;
-          background: #fbfdff;
+          background: var(--ms-surface);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+        .multi-select--experience {
+          --ms-accent: #0ea5e9;
+          --ms-accent-soft: #bae6fd;
+          --ms-selected-bg: #e0f2fe;
+          --ms-selected-border: #7dd3fc;
+          --ms-surface: linear-gradient(135deg, #f0f9ff 0%, #ecfeff 100%);
+        }
+        .multi-select--seniority {
+          --ms-accent: #8b5cf6;
+          --ms-accent-soft: #ddd6fe;
+          --ms-selected-bg: #f3e8ff;
+          --ms-selected-border: #c4b5fd;
+          --ms-surface: linear-gradient(135deg, #f8f7ff 0%, #f5f3ff 100%);
+        }
+        .multi-select--function {
+          --ms-accent: #0f766e;
+          --ms-accent-soft: #99f6e4;
+          --ms-selected-bg: #ccfbf1;
+          --ms-selected-border: #5eead4;
+          --ms-surface: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%);
         }
         .multi-select-header {
           display: flex;
@@ -492,17 +523,20 @@ export default function NaukriPage() {
           color: #334155;
           padding: 4px 12px;
           font-size: 12px;
-          transition: all 0.2s ease;
+          transition: all 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
         }
         .pill-btn:hover {
-          border-color: #60a5fa;
-          color: #1d4ed8;
+          border-color: var(--ms-accent);
+          color: var(--ms-accent);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px color-mix(in oklab, var(--ms-accent-soft) 65%, white);
         }
         .pill-btn.active {
-          background: #eff6ff;
-          color: #1d4ed8;
-          border-color: #93c5fd;
+          background: var(--ms-selected-bg);
+          color: var(--ms-accent);
+          border-color: var(--ms-selected-border);
           font-weight: 600;
+          box-shadow: 0 0 0 3px color-mix(in oklab, var(--ms-accent-soft) 50%, transparent);
         }
       `}</style>
     </>
