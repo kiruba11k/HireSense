@@ -79,16 +79,44 @@ export type Stage2RunPayload = {
 export const startPipeline = async (companyUrl: string, payload?: Stage2RunPayload) => {
   const apiBase = resolveApiBase();
   const targetUrl = payload ? `${apiBase}/run` : `${apiBase}/run?company=${companyUrl}`;
-  const res = await fetch(targetUrl, {
-    method: "POST",
-    headers: payload
-      ? {
-          "Content-Type": "application/json",
-        }
-      : undefined,
-    body: payload ? JSON.stringify(payload) : undefined,
-  });
-  return res.json();
+  let res: Response;
+
+  try {
+    res = await fetch(targetUrl, {
+      method: "POST",
+      headers: payload
+        ? {
+            "Content-Type": "application/json",
+          }
+        : undefined,
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach backend at ${apiBase}. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000).`
+    );
+  }
+
+  const { data, looksLikeHtml } = await parseApiResponse(res);
+  if (!res.ok) {
+    if (looksLikeHtml) {
+      throw new Error(
+        "Received HTML instead of JSON from /run. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000)."
+      );
+    }
+    if (data && typeof data === "object" && "detail" in data) {
+      throw new Error(String((data as { detail: unknown }).detail));
+    }
+    throw new Error(typeof data === "string" && data ? data : "Pipeline start failed");
+  }
+
+  if (looksLikeHtml) {
+    throw new Error(
+      "Received HTML instead of JSON from /run. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000)."
+    );
+  }
+
+  return data;
 };
 
 export const getResults = async (taskId: string) => {
