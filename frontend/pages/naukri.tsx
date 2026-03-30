@@ -52,12 +52,11 @@ type MultiSelectPillsProps = {
   selected: string[];
   onToggle: (value: string) => void;
   helperText?: string;
-  tone?: "experience" | "seniority" | "function";
 };
 
-function MultiSelectPills({ options, selected, onToggle, helperText, tone = "experience" }: MultiSelectPillsProps) {
+function MultiSelectPills({ options, selected, onToggle, helperText }: MultiSelectPillsProps) {
   return (
-    <div className={`multi-select mb-2 tone-${tone}`}>
+    <div className="multi-select mb-2">
       <div className="multi-select-header">
         <span className="text-secondary small">{selected.length} selected</span>
         {selected.length > 0 && (
@@ -274,7 +273,6 @@ export default function NaukriPage() {
                       selected={experienceLevel}
                       onToggle={(value) => toggleChoice(value, experienceLevel, setExperienceLevel)}
                       helperText="Choose one or more experience ranges."
-                      tone="experience"
                     />
                   </div>
                   <div className="col-md-6">
@@ -363,7 +361,6 @@ export default function NaukriPage() {
                   selected={seniorityFilter}
                   onToggle={(value) => toggleChoice(value, seniorityFilter, setSeniorityFilter)}
                   helperText="Pick matching seniority buckets for the role."
-                  tone="seniority"
                 />
 
                 <label className="form-label">Function</label>
@@ -372,7 +369,6 @@ export default function NaukriPage() {
                   selected={functionFilter}
                   onToggle={(value) => toggleChoice(value, functionFilter, setFunctionFilter)}
                   helperText="Select all relevant job functions."
-                  tone="function"
                 />
 
                 <label className="form-label">Historical window (days): {historicalWindow}</label>
@@ -462,26 +458,10 @@ export default function NaukriPage() {
           flex: 1;
         }
         .multi-select {
-          border: 1px solid #dbe4ee;
+          border: 1px solid #d9e2ec;
           border-radius: 10px;
           padding: 10px;
-          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-          transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-        }
-        .multi-select:hover {
-          transform: translateY(-1px);
-        }
-        .multi-select.tone-experience:hover {
-          border-color: #93c5fd;
-          box-shadow: 0 6px 14px rgba(37, 99, 235, 0.12);
-        }
-        .multi-select.tone-seniority:hover {
-          border-color: #c4b5fd;
-          box-shadow: 0 6px 14px rgba(109, 40, 217, 0.12);
-        }
-        .multi-select.tone-function:hover {
-          border-color: #fdba74;
-          box-shadow: 0 6px 14px rgba(234, 88, 12, 0.12);
+          background: #fbfdff;
         }
         .multi-select-header {
           display: flex;
@@ -499,11 +479,6 @@ export default function NaukriPage() {
           background: #ecfdf3;
           border-color: #a7f3d0;
           color: #065f46;
-          transition: transform 0.15s ease, box-shadow 0.2s ease;
-        }
-        .selected-chip:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 3px 8px rgba(6, 95, 70, 0.18);
         }
         .pill-wrap {
           display: flex;
@@ -518,47 +493,16 @@ export default function NaukriPage() {
           padding: 4px 12px;
           font-size: 12px;
           transition: all 0.2s ease;
-          position: relative;
-          overflow: hidden;
         }
         .pill-btn:hover {
-          transform: translateY(-1px);
-        }
-        .tone-experience .pill-btn:hover {
           border-color: #60a5fa;
           color: #1d4ed8;
-          box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
-        }
-        .tone-seniority .pill-btn:hover {
-          border-color: #a78bfa;
-          color: #6d28d9;
-          box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2);
-        }
-        .tone-function .pill-btn:hover {
-          border-color: #fb923c;
-          color: #c2410c;
-          box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2);
         }
         .pill-btn.active {
-          font-weight: 600;
-        }
-        .tone-experience .pill-btn.active {
           background: #eff6ff;
           color: #1d4ed8;
           border-color: #93c5fd;
-          box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
-        }
-        .tone-seniority .pill-btn.active {
-          background: #f5f3ff;
-          color: #6d28d9;
-          border-color: #c4b5fd;
-          box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.24);
-        }
-        .tone-function .pill-btn.active {
-          background: #fff7ed;
-          color: #c2410c;
-          border-color: #fdba74;
-          box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.2);
+          font-weight: 600;
         }
       `}</style>
     </>
