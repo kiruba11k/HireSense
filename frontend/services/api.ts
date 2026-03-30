@@ -1,16 +1,37 @@
-const DEFAULT_API_BASE = "https://hiresense-backend-75hd.onrender.com";
+const DEFAULT_API_BASES = [
+  "https://hiresense-backend-8zxz.onrender.com",
+  "https://hiresense-backend.onrender.com",
+  "https://hiresense-backend-75hd.onrender.com",
+];
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
 const normalizeBase = (value?: string) => value?.trim().replace(/\/$/, "");
 
+const getRenderDerivedBackend = () => {
+  if (typeof window === "undefined") return undefined;
+  const { hostname } = window.location;
+  if (!hostname.endsWith(".onrender.com")) return undefined;
+
+  if (hostname.startsWith("hiresense-frontend")) {
+    return "https://hiresense-backend-8zxz.onrender.com";
+  }
+
+  return undefined;
+};
+
 const getApiBaseCandidates = (fallbackBase?: string) => {
-  const candidates = [normalizeBase(fallbackBase), normalizeBase(BASE), DEFAULT_API_BASE];
+  const candidates = [
+    normalizeBase(fallbackBase),
+    normalizeBase(BASE),
+    normalizeBase(getRenderDerivedBackend()),
+    ...DEFAULT_API_BASES,
+  ];
   return Array.from(new Set(candidates.filter((item): item is string => Boolean(item))));
 };
 
 const resolveApiBase = (fallbackBase?: string) => {
   const [firstCandidate] = getApiBaseCandidates(fallbackBase);
-  return firstCandidate || DEFAULT_API_BASE;
+  return firstCandidate || DEFAULT_API_BASES[0];
 };
 
 const parseApiResponse = async (res: Response) => {
@@ -108,7 +129,7 @@ export const startPipeline = async (companyUrl: string, payload?: Stage2RunPaylo
 
   if (!res) {
     throw new Error(
-      `Unable to reach backend at ${lastFailedBase}. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000).`
+      `Unable to reach backend. Tried: ${apiBases.join(", ")}. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000).`
     );
   }
 
