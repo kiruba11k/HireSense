@@ -1,10 +1,16 @@
+const DEFAULT_API_BASE = "https://hiresense-backend-75hd.onrender.com";
 const BASE = process.env.NEXT_PUBLIC_API_URL;
 
+const normalizeBase = (value?: string) => value?.trim().replace(/\/$/, "");
+
+const getApiBaseCandidates = (fallbackBase?: string) => {
+  const candidates = [normalizeBase(fallbackBase), normalizeBase(BASE), DEFAULT_API_BASE];
+  return Array.from(new Set(candidates.filter((item): item is string => Boolean(item))));
+};
+
 const resolveApiBase = (fallbackBase?: string) => {
-  if (fallbackBase) return fallbackBase;
-  if (BASE) return BASE;
-  if (typeof window !== "undefined") return "https://hiresense-backend-75hd.onrender.com";
-  return "https://hiresense-backend-75hd.onrender.com";
+  const [firstCandidate] = getApiBaseCandidates(fallbackBase);
+  return firstCandidate || DEFAULT_API_BASE;
 };
 
 const parseApiResponse = async (res: Response) => {
@@ -77,23 +83,32 @@ export type Stage2RunPayload = {
 };
 
 export const startPipeline = async (companyUrl: string, payload?: Stage2RunPayload) => {
-  const apiBase = resolveApiBase();
-  const targetUrl = payload ? `${apiBase}/run` : `${apiBase}/run?company=${companyUrl}`;
-  let res: Response;
+  const apiBases = getApiBaseCandidates();
+  let res: Response | null = null;
+  let lastFailedBase = resolveApiBase();
 
-  try {
-    res = await fetch(targetUrl, {
-      method: "POST",
-      headers: payload
-        ? {
-            "Content-Type": "application/json",
-          }
-        : undefined,
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
-  } catch {
+  for (const apiBase of apiBases) {
+    const targetUrl = payload ? `${apiBase}/run` : `${apiBase}/run?company=${companyUrl}`;
+    try {
+      res = await fetch(targetUrl, {
+        method: "POST",
+        headers: payload
+          ? {
+              "Content-Type": "application/json",
+            }
+          : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      lastFailedBase = apiBase;
+      break;
+    } catch {
+      lastFailedBase = apiBase;
+    }
+  }
+
+  if (!res) {
     throw new Error(
-      `Unable to reach backend at ${apiBase}. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000).`
+      `Unable to reach backend at ${lastFailedBase}. Set NEXT_PUBLIC_API_URL to your backend (e.g. http://localhost:8000).`
     );
   }
 
