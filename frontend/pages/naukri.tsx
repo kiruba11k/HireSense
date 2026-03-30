@@ -47,6 +47,60 @@ const cardAnimation = {
   transition: { duration: 0.28 },
 };
 
+type MultiSelectPillsProps = {
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  helperText?: string;
+};
+
+function MultiSelectPills({ options, selected, onToggle, helperText }: MultiSelectPillsProps) {
+  return (
+    <div className="multi-select mb-2">
+      <div className="multi-select-header">
+        <span className="text-secondary small">{selected.length} selected</span>
+        {selected.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-link btn-sm p-0 text-decoration-none"
+            onClick={() => selected.forEach((value) => onToggle(value))}
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {selected.length > 0 && (
+        <div className="selected-chip-wrap">
+          {selected.map((value) => (
+            <button key={value} type="button" className="chip selected-chip" onClick={() => onToggle(value)}>
+              {value} ×
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="pill-wrap">
+        {options.map((opt) => {
+          const active = selected.includes(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              className={`pill-btn ${active ? "active" : ""}`}
+              onClick={() => onToggle(opt)}
+              aria-pressed={active}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {helperText && <small className="text-secondary d-block mt-1">{helperText}</small>}
+    </div>
+  );
+}
+
 export default function NaukriPage() {
   const router = useRouter();
   const socketRef = useRef<WebSocket | null>(null);
@@ -214,16 +268,12 @@ export default function NaukriPage() {
                 <div className="row g-2">
                   <div className="col-md-6">
                     <label className="form-label">Experience</label>
-                    <select
-                      className="form-select mb-2"
-                      multiple
-                      value={experienceLevel}
-                      onChange={(e) => setExperienceLevel(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-                    >
-                      {EXPERIENCE_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                    <MultiSelectPills
+                      options={EXPERIENCE_OPTIONS}
+                      selected={experienceLevel}
+                      onToggle={(value) => toggleChoice(value, experienceLevel, setExperienceLevel)}
+                      helperText="Choose one or more experience ranges."
+                    />
                   </div>
                   <div className="col-md-6">
                     <label className="form-label">Locations</label>
@@ -306,28 +356,20 @@ export default function NaukriPage() {
                 <h5>Filters / Rules</h5>
 
                 <label className="form-label mt-2">Seniority</label>
-                <select
-                  className="form-select mb-2"
-                  multiple
-                  value={seniorityFilter}
-                  onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-                >
-                  {SENIORITY_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                <MultiSelectPills
+                  options={SENIORITY_OPTIONS}
+                  selected={seniorityFilter}
+                  onToggle={(value) => toggleChoice(value, seniorityFilter, setSeniorityFilter)}
+                  helperText="Pick matching seniority buckets for the role."
+                />
 
                 <label className="form-label">Function</label>
-                <select
-                  className="form-select mb-2"
-                  multiple
-                  value={functionFilter}
-                  onChange={(e) => setFunctionFilter(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-                >
-                  {ALL_FUNCTION_FILTERS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                <MultiSelectPills
+                  options={ALL_FUNCTION_FILTERS}
+                  selected={functionFilter}
+                  onToggle={(value) => toggleChoice(value, functionFilter, setFunctionFilter)}
+                  helperText="Select all relevant job functions."
+                />
 
                 <label className="form-label">Historical window (days): {historicalWindow}</label>
                 <input type="range" className="form-range mb-2" min={7} max={180} value={historicalWindow} onChange={(e) => setHistoricalWindow(Number(e.target.value))} />
@@ -414,6 +456,53 @@ export default function NaukriPage() {
           outline: none;
           min-width: 180px;
           flex: 1;
+        }
+        .multi-select {
+          border: 1px solid #d9e2ec;
+          border-radius: 10px;
+          padding: 10px;
+          background: #fbfdff;
+        }
+        .multi-select-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 6px;
+        }
+        .selected-chip-wrap {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+        .selected-chip {
+          background: #ecfdf3;
+          border-color: #a7f3d0;
+          color: #065f46;
+        }
+        .pill-wrap {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .pill-btn {
+          border: 1px solid #cbd5e1;
+          border-radius: 999px;
+          background: #fff;
+          color: #334155;
+          padding: 4px 12px;
+          font-size: 12px;
+          transition: all 0.2s ease;
+        }
+        .pill-btn:hover {
+          border-color: #60a5fa;
+          color: #1d4ed8;
+        }
+        .pill-btn.active {
+          background: #eff6ff;
+          color: #1d4ed8;
+          border-color: #93c5fd;
+          font-weight: 600;
         }
       `}</style>
     </>
