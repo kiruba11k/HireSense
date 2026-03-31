@@ -273,22 +273,32 @@ export type IntentAnalyzeResult = {
   company_name: string;
   intent_categories: string[];
   intent_type: "Implementation" | "Migration" | "Optimization" | "Unknown";
-  intent_score: "Low" | "Medium" | "High";
+  intent_score: "Low" | "Medium" | "High" | string;
   reasoning: string;
 };
 
-export const analyzeIntent = async (payload: IntentAnalyzeInput) => {
-  const apiBase = resolveApiBase();
-  const res = await fetch(`${apiBase}/analyze-intent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.detail || "Intent analysis failed");
+export const analyzeIntent = async (payload: IntentAnalyzeInput, fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/analyze-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error(`Unable to reach backend at ${apiBase}.`);
   }
-  return data as { results: IntentAnalyzeResult[] };
+
+  const { data, looksLikeHtml } = await parseApiResponse(res);
+  if (!res.ok) {
+    if (looksLikeHtml) throw new Error("Received HTML instead of JSON from /analyze-intent.");
+    throw new Error((data as { detail?: string })?.detail || "Intent analysis failed");
+  }
+  if (!data || typeof data !== "object" || looksLikeHtml) {
+    throw new Error("Invalid response from /analyze-intent.");
+  }
+  return data as IntentAnalyzeResult;
 };
 
 export const analyzeIntentCsv = async (file: File) => {
