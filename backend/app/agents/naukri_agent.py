@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 import hashlib
+import random
 import re
+import time
+from urllib.parse import quote_plus
+
+import requests
+from bs4 import BeautifulSoup
 
 from app.agents.utils import (
     build_job_id,
@@ -41,6 +48,15 @@ RECRUITER_TITLES = [
     "HR Business Partner",
 ]
 
+REQUEST_TIMEOUT_SECONDS = 20
+NAUKRI_PAGES_PER_QUERY = 2
+REQUEST_DELAY_SECONDS = (1.5, 3.5)
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+]
+
 
 def _stable_int(seed: str, minimum: int, maximum: int) -> int:
     value = int(hashlib.md5(seed.encode("utf-8")).hexdigest()[:8], 16)
@@ -74,6 +90,71 @@ def _is_consultancy(company_name: str) -> bool:
 
 def _normalize_title(keyword: str) -> str:
     return f"{keyword.strip()} Engineer".replace("  ", " ").title()
+
+
+def _slugify_query(value: str) -> str:
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", value.strip().lower())).strip("-")
+
+
+def _fetch_naukri_html(keyword: str, location: str, page_number: int) -> str:
+    keyword_slug = _slugify_query(keyword)
+    location_slug = _slugify_query(location)
+    keyword_param = quote_plus(keyword.strip())
+    location_param = quote_plus(location.strip())
+    url = (
+        f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}"
+        f"?k={keyword_param}&l={location_param}&pageNo={page_number}"
+    )
+    headers = {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return response.text
+
+
+def _scrape_naukri(keyword: str, location: str) -> list[dict]:
+    jobs: list[dict] = []
+    now = datetime.now(UTC).date().isoformat()
+
+    for page in range(1, NAUKRI_PAGES_PER_QUERY + 1):
+        html = _fetch_naukri_html(keyword, location, page)
+        soup = BeautifulSoup(html, "lxml")
+        cards = soup.select("article.jobTuple, article.srp-jobtuple-wrapper")
+        for card in cards:
+            title_tag = card.select_one("a.title")
+            company_tag = card.select_one(".comp-name")
+            location_tag = card.select_one(".locWdth, .loc-wrap .ellipsis")
+            exp_tag = card.select_one(".expwdth, .exp-wrap .ellipsis")
+            desc_tag = card.select_one(".job-desc, .job-desc.ni-job-tuple-icon")
+            skills = [s.get_text(" ", strip=True) for s in card.select(".tags-gt li")]
+
+            title = title_tag.get_text(" ", strip=True) if title_tag else ""
+            company = company_tag.get_text(" ", strip=True) if company_tag else ""
+            location_value = location_tag.get_text(" ", strip=True) if location_tag else location
+            description = desc_tag.get_text(" ", strip=True) if desc_tag else ""
+            experience_value = exp_tag.get_text(" ", strip=True) if exp_tag else None
+            source_url = title_tag.get("href", "").strip() if title_tag else ""
+            if not title or not company:
+                continue
+
+            jobs.append(
+                {
+                    "job_title": title,
+                    "company_name": company,
+                    "location": location_value,
+                    "experience_range": experience_value,
+                    "posted_date": now,
+                    "description": description,
+                    "skills": skills,
+                    "source_url": source_url,
+                    "source": "Naukri",
+                }
+            )
+        time.sleep(random.uniform(*REQUEST_DELAY_SECONDS))
+
+    return jobs
 
 
 def _detect_hiring_spikes(records: list[dict], recent_window_days: int, historical_window_days: int) -> list[dict]:
@@ -121,6 +202,47 @@ async def naukri_jobs(search: JobSearchInput, company_name: str) -> list[dict]:
     for company in companies:
         normalized_company = normalize_company_name(company)
         for keyword in search.keywords[: search.job_limit_per_company]:
+            locations = search.locations or ["india"]
+            scraped_records: list[dict] = []
+            for location in locations:
+                try:
+                    scraped_records.extend(await asyncio.to_thread(_scrape_naukri, keyword, location))
+                except requests.RequestException:
+                    continue
+
+            if scraped_records:
+                for record in scraped_records:
+                    normalized_scraped_company = normalize_company_name(record.get("company_name", ""))
+                    title = record.get("job_title", "")
+                    desc = record.get("description", "")
+                    location = record.get("location", "Remote")
+                    fn = classify_function(f"{title} {desc}")
+                    recruiter = f"{RECRUITER_TITLES[0]} - {normalized_scraped_company}"
+
+                    if _looks_irrelevant(title, desc):
+                        continue
+
+                    parsed = JobRecord(
+                        job_id=build_job_id(normalized_scraped_company, title, location, "naukri"),
+                        company_name=normalized_scraped_company,
+                        job_title=title,
+                        seniority_level=seniority_level,
+                        function=fn,
+                        experience_range=record.get("experience_range") or search.experience_level or "Not specified",
+                        location=location,
+                        posted_date=record.get("posted_date"),
+                        role_responsibilities=bullets_from_description(desc),
+                        key_skills=record.get("skills") or extract_skills(desc),
+                        summary=summarize_text(desc),
+                        source="Naukri",
+                        source_url=record.get("source_url"),
+                        openings=1,
+                        recruiter=recruiter,
+                        description=desc,
+                    )
+                    out.append(parsed.model_dump())
+                continue
+
             posting_count = _stable_int(f"{normalized_company}:{keyword}:count", 1, 4)
             for slot in range(posting_count):
                 location = (search.locations or ["Remote"])[slot % max(1, len(search.locations or ["Remote"]))]

@@ -1,5 +1,6 @@
 const DEFAULT_API_BASES = [
   "https://hiresense-backend-8zxz.onrender.com",
+  "https://hiresense-backend-on61.onrender.com",
   "https://hiresense-backend.onrender.com",
   "https://hiresense-backend-75hd.onrender.com",
   "http://localhost:8000",
