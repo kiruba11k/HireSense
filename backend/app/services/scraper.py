@@ -9,6 +9,17 @@ from datetime import datetime
 from urllib.parse import quote_plus
 
 import requests
+try:
+    from selenium import webdriver
+    from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+    from webdriver_manager.chrome import ChromeDriverManager
+except ImportError:  # pragma: no cover - optional runtime dependency
+    webdriver = None
 
 from app.services.deduplicator import apply_hiring_spike, deduplicate_jobs
 from app.services.models import NaukriJob, NaukriRunRequest
@@ -32,6 +43,7 @@ class NaukriScraper:
         self.max_pages = 3
         self.max_detail_pages = 30
         self.max_concurrency = 4
+        self.browser_wait_timeout = 15
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -57,6 +69,121 @@ class NaukriScraper:
                 return response.text
             time.sleep(1.2 * (attempt + 1))
         raise RuntimeError("Naukri temporarily blocked scraping")
+
+    def _scrape_search_pages_with_browser(self, payload: NaukriRunRequest, status_cb=None) -> list[dict[str, str]]:
+        if webdriver is None:
+            return []
+
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument(f"user-agent={random.choice(USER_AGENTS)}")
+
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        wait = WebDriverWait(driver, self.browser_wait_timeout)
+        scraped: list[dict[str, str]] = []
+        seen: set[tuple[str, str, str]] = set()
+        keywords = payload.keywords or ["AI"]
+        locations = payload.locations or ["India"]
+
+        try:
+            for keyword in keywords:
+                for location in locations:
+                    url = self.build_search_url(keyword, location, payload.experience, page=1)
+                    driver.get(url)
+                    page_count = 1
+
+                    while page_count <= self.max_pages:
+                        try:
+                            wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "srp-jobtuple-wrapper")))
+                        except TimeoutException:
+                            break
+
+                        cards = driver.find_elements(By.CLASS_NAME, "srp-jobtuple-wrapper")
+                        if not cards:
+                            break
+
+                        first_card = cards[0]
+                        for card in cards:
+                            try:
+                                title_el = card.find_element(By.CLASS_NAME, "title")
+                                title = title_el.text.strip()
+                                if not title:
+                                    continue
+
+                                company = card.find_element(By.CLASS_NAME, "comp-name").text.strip()
+                                source_url = (title_el.get_attribute("href") or "").strip()
+                                if not source_url:
+                                    continue
+
+                                try:
+                                    exp = card.find_element(By.CLASS_NAME, "expwdth").text.strip()
+                                except NoSuchElementException:
+                                    exp = ""
+
+                                try:
+                                    salary = card.find_element(By.CLASS_NAME, "sal-wrap").text.strip()
+                                except NoSuchElementException:
+                                    salary = ""
+
+                                try:
+                                    loc = card.find_element(By.CLASS_NAME, "locWdth").text.strip()
+                                except NoSuchElementException:
+                                    loc = ""
+
+                                try:
+                                    desc = card.find_element(By.CLASS_NAME, "job-desc").text.strip()
+                                except NoSuchElementException:
+                                    desc = ""
+
+                                try:
+                                    posted_date = card.find_element(By.CLASS_NAME, "job-post-day").text.strip()
+                                except NoSuchElementException:
+                                    posted_date = ""
+
+                                tag_nodes = card.find_elements(By.CLASS_NAME, "tag-li")
+                                key_skills = ", ".join(tag.text.strip() for tag in tag_nodes if tag.text.strip())
+                                if salary and salary.lower() not in desc.lower():
+                                    desc = f"{desc} Salary: {salary}".strip()
+
+                                key = (title.lower(), company.lower(), source_url)
+                                if key in seen:
+                                    continue
+                                seen.add(key)
+                                scraped.append(
+                                    {
+                                        "job_title": title,
+                                        "company_name": company or "Unknown",
+                                        "location": loc,
+                                        "experience_range": exp,
+                                        "key_skills": key_skills,
+                                        "role_responsibilities": desc,
+                                        "posted_date": posted_date,
+                                        "source_url": source_url,
+                                    }
+                                )
+                            except (StaleElementReferenceException, NoSuchElementException):
+                                continue
+
+                        if status_cb:
+                            status_cb(f"Scraped page {page_count} for {keyword} in {location}")
+
+                        try:
+                            next_button = driver.find_element(By.CSS_SELECTOR, "a.styles_btn-secondary__2AsIP")
+                            if "next" not in next_button.text.lower():
+                                break
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", next_button)
+                            driver.execute_script("arguments[0].click();", next_button)
+                            wait.until(EC.staleness_of(first_card))
+                            page_count += 1
+                            time.sleep(1)
+                        except (NoSuchElementException, TimeoutException):
+                            break
+        finally:
+            driver.quit()
+
+        return scraped
 
     async def _fetch_detail(self, sem: asyncio.Semaphore, url: str) -> tuple[str, str | None, list[str]]:
         async with sem:
@@ -93,15 +220,17 @@ class NaukriScraper:
         if status_cb:
             status_cb("Scraping search pages")
 
-        for keyword in keywords:
-            for location in locations:
-                for page in range(1, self.max_pages + 1):
-                    url = self.build_search_url(keyword, location, payload.experience, page)
-                    try:
-                        html = await asyncio.to_thread(self._fetch, url)
-                    except RuntimeError:
-                        continue
-                    staged_raw.extend(parse_search_page(html, "https://www.naukri.com"))
+        staged_raw = await asyncio.to_thread(self._scrape_search_pages_with_browser, payload, status_cb)
+        if not staged_raw:
+            for keyword in keywords:
+                for location in locations:
+                    for page in range(1, self.max_pages + 1):
+                        url = self.build_search_url(keyword, location, payload.experience, page)
+                        try:
+                            html = await asyncio.to_thread(self._fetch, url)
+                        except RuntimeError:
+                            continue
+                        staged_raw.extend(parse_search_page(html, "https://www.naukri.com"))
 
         if status_cb:
             status_cb("Parsing job details")
