@@ -248,6 +248,11 @@ export type NaukriRunPayload = {
   locations: string[];
   companies?: string[];
   time_filter: "24h" | "7d" | "30d";
+  seniority_filter?: string[];
+  function_filter?: string[];
+  historical_window?: number;
+  remove_consultancy_duplicates?: boolean;
+  exclude_irrelevant_roles?: boolean;
 };
 
 export type NaukriStatusResponse = {

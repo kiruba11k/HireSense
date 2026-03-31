@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 
 from app.services.models import NaukriJob
 
-COMPANY_SPAM_KEYWORDS = ("consultancy", "staffing", "solutions", "recruitment")
+COMPANY_SPAM_KEYWORDS = ("consultancy", "staffing", "recruitment", "placement")
 ALLOWED_FUNCTIONS = {
     "it",
     "technology",
@@ -16,6 +16,16 @@ ALLOWED_FUNCTIONS = {
     "operations",
     "procurement",
     "digital transformation",
+}
+IRRELEVANT_ROLE_KEYWORDS = {
+    "telecaller",
+    "customer support",
+    "bpo",
+    "field sales",
+    "inside sales",
+    "insurance advisor",
+    "real estate agent",
+    "telesales",
 }
 
 
@@ -28,17 +38,28 @@ def _extract_posted_date(text: str) -> str | None:
     return text.strip()[:100]
 
 
+def infer_seniority(job_title: str, experience_range: str | None = None) -> str:
+    blob = f"{job_title} {experience_range or ''}".lower()
+    if any(token in blob for token in ("director", "vp", "head ", "chief", "cxo")):
+        return "Executive"
+    if any(token in blob for token in ("senior", "lead", "principal", "architect", "manager")):
+        return "Mid-Senior"
+    if any(token in blob for token in ("intern", "trainee", "fresher", "apprentice")):
+        return "Entry"
+    return "Associate"
+
+
 def _infer_function(job_title: str, description: str) -> str:
     blob = f"{job_title} {description}".lower()
-    if any(token in blob for token in ("finance", "account", "finops")):
+    if any(token in blob for token in ("finance", "account", "finops", "tax", "fp&a")):
         return "Finance"
-    if any(token in blob for token in ("procurement", "supply chain", "sourcing")):
+    if any(token in blob for token in ("procurement", "supply chain", "sourcing", "vendor")):
         return "Procurement"
-    if any(token in blob for token in ("operation", "ops")):
+    if any(token in blob for token in ("operation", "ops", "process excellence")):
         return "Operations"
-    if any(token in blob for token in ("digital transformation", "transformation")):
+    if any(token in blob for token in ("digital transformation", "transformation", "change management")):
         return "Digital Transformation"
-    if any(token in blob for token in ("software", "developer", "engineer", "cloud", "data", "qa", "it", "ai")):
+    if any(token in blob for token in ("software", "developer", "engineer", "cloud", "data", "qa", "it", "ai", "sap", "erp")):
         return "Technology"
     return "IT"
 
@@ -63,19 +84,24 @@ def should_filter_seniority(title: str) -> bool:
     return "intern" in value or "trainee" in value
 
 
+def is_irrelevant_role(title: str, role_text: str) -> bool:
+    blob = f"{title} {role_text}".lower()
+    return any(token in blob for token in IRRELEVANT_ROLE_KEYWORDS)
+
+
 def parse_search_page(html: str, base_url: str) -> list[dict[str, str]]:
     soup = BeautifulSoup(html, "lxml")
     jobs: list[dict[str, str]] = []
 
-    cards = soup.select("article.jobTuple") or soup.select("div.srp-jobtuple-wrapper") or soup.select("div.row1")
+    cards = soup.select("article.jobTuple, div.srp-jobtuple-wrapper, div.row1, div.cust-job-tuple")
     for card in cards:
-        anchor = card.select_one("a.title") or card.select_one("a[href*='/job-listings-']")
-        company_el = card.select_one("a.comp-name") or card.select_one("span.comp-name")
-        location_el = card.select_one("span.locWdth") or card.select_one("span.location")
-        exp_el = card.select_one("span.expwdth") or card.select_one("span.exp")
-        skills = [skill.get_text(strip=True) for skill in card.select("ul.tags-gt li")]
-        desc_el = card.select_one("span.job-desc")
-        posted_el = card.select_one("span.job-post-day") or card.select_one("span.job-post-day")
+        anchor = card.select_one("a.title") or card.select_one("a[href*='/job-listings-']") or card.select_one("a[title]")
+        company_el = card.select_one("a.comp-name, span.comp-name, a.subTitle")
+        location_el = card.select_one("span.locWdth, span.location, li.location span")
+        exp_el = card.select_one("span.expwdth, span.exp, li.experience span")
+        skills = [skill.get_text(strip=True) for skill in card.select("ul.tags-gt li, ul.tags li")]
+        desc_el = card.select_one("span.job-desc, div.job-desc")
+        posted_el = card.select_one("span.job-post-day") or card.select_one("span.jobTupleFooter span")
 
         if not anchor:
             continue
@@ -134,8 +160,6 @@ def build_job_record(raw: dict[str, str], fallback_job_id: str, detailed_role: s
     title = raw.get("job_title", "").strip()
     if not company or not title:
         return None
-    if should_filter_company(company) or should_filter_seniority(title):
-        return None
 
     role_text = detailed_role or raw.get("role_responsibilities") or ""
     inferred_function = _infer_function(title, role_text)
@@ -149,6 +173,7 @@ def build_job_record(raw: dict[str, str], fallback_job_id: str, detailed_role: s
         company_name=company,
         job_title=title,
         function=inferred_function,
+        seniority_level=infer_seniority(title, raw.get("experience_range")),
         experience_range=raw.get("experience_range") or None,
         location=raw.get("location") or None,
         posted_date=raw.get("posted_date") or None,

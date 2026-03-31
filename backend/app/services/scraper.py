@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import random
-import time
 import re
+import time
 import uuid
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -12,7 +12,14 @@ import requests
 
 from app.services.deduplicator import apply_hiring_spike, deduplicate_jobs
 from app.services.models import NaukriJob, NaukriRunRequest
-from app.services.parser import build_job_record, parse_job_details, parse_search_page
+from app.services.parser import (
+    build_job_record,
+    is_irrelevant_role,
+    parse_job_details,
+    parse_search_page,
+    should_filter_company,
+    should_filter_seniority,
+)
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -60,13 +67,31 @@ class NaukriScraper:
             except Exception:
                 return url, None, []
 
+    def _posted_within_days(self, posted_date: str | None, max_days: int) -> bool:
+        if not posted_date:
+            return True
+        value = posted_date.lower().strip()
+        if "today" in value or "just" in value:
+            return True
+        match = re.search(r"(\d+)", value)
+        if not match:
+            return True
+        amount = int(match.group(1))
+        if "hour" in value:
+            return True
+        if "week" in value:
+            return amount * 7 <= max_days
+        if "month" in value:
+            return amount * 30 <= max_days
+        return amount <= max_days
+
     async def run(self, payload: NaukriRunRequest, status_cb=None) -> list[NaukriJob]:
         keywords = payload.keywords or ["AI"]
         locations = payload.locations or ["India"]
         staged_raw: list[dict[str, str]] = []
 
         if status_cb:
-            status_cb("Scraping search page")
+            status_cb("Scraping search pages")
 
         for keyword in keywords:
             for location in locations:
@@ -79,7 +104,7 @@ class NaukriScraper:
                     staged_raw.extend(parse_search_page(html, "https://www.naukri.com"))
 
         if status_cb:
-            status_cb("Parsing jobs")
+            status_cb("Parsing job details")
 
         staged_raw = staged_raw[: self.max_detail_pages]
         sem = asyncio.Semaphore(self.max_concurrency)
@@ -101,11 +126,38 @@ class NaukriScraper:
             built = build_job_record(raw, str(uuid.uuid4()), role, skills)
             if built is None:
                 continue
+
+            if payload.remove_consultancy_duplicates and should_filter_company(built.company_name):
+                continue
+            if payload.exclude_irrelevant_roles and is_irrelevant_role(built.job_title, built.role_responsibilities or ""):
+                continue
+            if should_filter_seniority(built.job_title):
+                continue
+
             built.scraped_timestamp = datetime.utcnow()
             jobs.append(built)
 
         if status_cb:
-            status_cb("Deduplicating")
+            status_cb("Applying filters")
+
+        days_window = 1 if payload.time_filter == "24h" else (7 if payload.time_filter == "7d" else 30)
+        days_window = min(days_window, payload.historical_window)
+        jobs = [job for job in jobs if self._posted_within_days(job.posted_date, days_window)]
+
+        if payload.companies:
+            allow = {item.lower().strip() for item in payload.companies}
+            jobs = [job for job in jobs if any(token in job.company_name.lower() for token in allow)]
+
+        if payload.seniority_filter:
+            allow = {item.lower().strip() for item in payload.seniority_filter}
+            jobs = [job for job in jobs if (job.seniority_level or "").lower() in allow]
+
+        if payload.function_filter:
+            allow = {item.lower().strip() for item in payload.function_filter}
+            jobs = [job for job in jobs if (job.function or "").lower() in allow]
+
+        if status_cb:
+            status_cb("Deduplicating jobs")
 
         jobs = deduplicate_jobs(jobs)
         jobs = apply_hiring_spike(jobs)

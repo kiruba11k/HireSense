@@ -11,6 +11,11 @@ class NaukriRunRequest(BaseModel):
     locations: list[str] = Field(default_factory=list)
     companies: list[str] = Field(default_factory=list)
     time_filter: str = "7d"
+    seniority_filter: list[str] = Field(default_factory=list)
+    function_filter: list[str] = Field(default_factory=list)
+    historical_window: int = Field(default=30, ge=1, le=180)
+    remove_consultancy_duplicates: bool = True
+    exclude_irrelevant_roles: bool = True
 
 
 class NaukriJob(BaseModel):
@@ -18,6 +23,7 @@ class NaukriJob(BaseModel):
     company_name: str
     job_title: str
     function: str | None = None
+    seniority_level: str | None = None
     experience_range: str | None = None
     location: str | None = None
     posted_date: str | None = None

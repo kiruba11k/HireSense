@@ -91,6 +91,7 @@ async def download_results():
         "company_name",
         "job_title",
         "function",
+        "seniority_level",
         "experience_range",
         "location",
         "posted_date",
@@ -99,6 +100,7 @@ async def download_results():
         "source",
         "scraped_timestamp",
         "hiring_spike",
+        "source_url",
     ]
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=headers)
