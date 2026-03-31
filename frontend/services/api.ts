@@ -262,6 +262,50 @@ export type NaukriStatusResponse = {
   updated_at?: string | null;
 };
 
+export type IntentAnalyzeInput = {
+  job_title: string;
+  job_description: string;
+  company_name: string;
+  historical_job_count: number;
+};
+
+export type IntentAnalyzeResult = {
+  company_name: string;
+  intent_categories: string[];
+  intent_type: "Implementation" | "Migration" | "Optimization" | "Unknown";
+  intent_score: "Low" | "Medium" | "High";
+  reasoning: string;
+};
+
+export const analyzeIntent = async (payload: IntentAnalyzeInput) => {
+  const apiBase = resolveApiBase();
+  const res = await fetch(`${apiBase}/analyze-intent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "Intent analysis failed");
+  }
+  return data as { results: IntentAnalyzeResult[] };
+};
+
+export const analyzeIntentCsv = async (file: File) => {
+  const apiBase = resolveApiBase();
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${apiBase}/analyze-intent`, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.detail || "CSV intent analysis failed");
+  }
+  return data as { results: IntentAnalyzeResult[] };
+};
+
 export const runNaukriAgent = async (payload: NaukriRunPayload, fallbackBase?: string) => {
   const apiBase = resolveApiBase(fallbackBase);
   const res = await fetch(`${apiBase}/naukri/run-agent`, {

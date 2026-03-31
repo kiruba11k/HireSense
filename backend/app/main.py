@@ -6,14 +6,17 @@ import io
 import json
 import uuid
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 
 from app.config import settings
+from app.csv_handler import parse_intent_csv
 from app.db import SessionLocal
+from app.intent_pipeline import analyze_hiring_intent
 from app.models import Result, Task
-from app.schemas import LinkedInSearchRequest, Stage2Request
+from app.schemas import IntentAnalyzeRequest, LinkedInSearchRequest, Stage2Request
 from app.routers.naukri_agent import router as naukri_router
 from app.services.linkedin_search_service import LinkedInSearchService
 from app.services.pipeline import run_pipeline
@@ -154,6 +157,35 @@ async def linkedin_jobs_search_csv(payload: LinkedInSearchRequest):
     output.seek(0)
     response_headers = {"Content-Disposition": "attachment; filename=linkedin-jobs.csv"}
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=response_headers)
+
+
+@app.post("/analyze-intent")
+async def analyze_intent(
+    request: Request,
+    file: UploadFile | None = File(default=None),
+):
+    if file is not None:
+        content = await file.read()
+        try:
+            jobs = parse_intent_csv(content)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    else:
+        content_type = (request.headers.get("content-type") or "").lower()
+        if "application/json" not in content_type:
+            raise HTTPException(status_code=400, detail="Provide JSON body or multipart CSV file upload.")
+        raw_payload = await request.json()
+        try:
+            payload = IntentAnalyzeRequest(**raw_payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+        jobs = [payload.model_dump()]
+
+    results = []
+    for job in jobs:
+        results.append(await analyze_hiring_intent(job))
+
+    return {"results": results}
 
 
 @app.get("/results/{task_id}")
