@@ -117,7 +117,14 @@ async def analyze_hiring_intent(job: dict[str, Any]) -> dict[str, Any]:
     except GroqClientError as exc:
         return default_low_intent(company_name, f"Classification failed: {exc}")
 
-    guarded = validate_and_guardrail(company_name, evidence, classification)
+    guarded = validate_and_guardrail(
+        company_name=company_name,
+        evidence=evidence,
+        classification=classification,
+        job_title=str(job.get("job_title", "")),
+        job_description=job_description,
+        historical_job_count=int(job.get("historical_job_count", 0) or 0),
+    )
 
     if os.getenv("ENABLE_JUDGE", "false").lower() == "true":
         try:
