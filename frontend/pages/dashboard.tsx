@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Head from "next/head";
 import { motion } from "framer-motion";
 
@@ -14,8 +13,7 @@ export default function DashboardPage() {
       `}</style>
       <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-tile p-5 shadow-lg">
         <h1>Intent Dashboard</h1>
-        <p>Analyze job posting text into enterprise hiring intent signals.</p>
-        <Link href="/upload" className="btn btn-primary">Go to Analyzer</Link>
+        <p>Track multi-agent enterprise hiring signals in one place.</p>
       </motion.div>
     </div>
   );
