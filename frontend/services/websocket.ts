@@ -1,7 +1,9 @@
 export const connectWS = (taskId: string, onMessage: any) => {
+  const persistedApiBase =
+    typeof window !== "undefined" ? window.sessionStorage.getItem("hiresense.api.base") : null;
   const explicitWsBase = process.env.NEXT_PUBLIC_WS_URL;
   const apiBase = (
-    process.env.NEXT_PUBLIC_API_URL || "https://hiresense-backend-8zxz.onrender.com"
+    persistedApiBase || process.env.NEXT_PUBLIC_API_URL || "https://hiresense-backend.onrender.com"
   )
     .trim()
     .replace(/\/$/, "");

@@ -2,26 +2,45 @@ const DEFAULT_API_BASES = [
   "https://hiresense-backend-8zxz.onrender.com",
   "https://hiresense-backend.onrender.com",
   "https://hiresense-backend-75hd.onrender.com",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
 ];
 const BASE = process.env.NEXT_PUBLIC_API_URL;
+const SELECTED_API_BASE_KEY = "hiresense.api.base";
 
 const normalizeBase = (value?: string) => value?.trim().replace(/\/$/, "");
+const isBrowser = () => typeof window !== "undefined";
 
 const getRenderDerivedBackend = () => {
-  if (typeof window === "undefined") return undefined;
+  if (!isBrowser()) return undefined;
   const { hostname } = window.location;
   if (!hostname.endsWith(".onrender.com")) return undefined;
 
   if (hostname.startsWith("hiresense-frontend")) {
-    return "https://hiresense-backend-8zxz.onrender.com";
+    const suffixMatch = hostname.match(/^hiresense-frontend-([^.]+)\.onrender\.com$/);
+    if (suffixMatch?.[1]) {
+      return `https://hiresense-backend-${suffixMatch[1]}.onrender.com`;
+    }
+    return "https://hiresense-backend.onrender.com";
   }
 
   return undefined;
 };
 
+const getPersistedApiBase = () => {
+  if (!isBrowser()) return undefined;
+  return normalizeBase(window.sessionStorage.getItem(SELECTED_API_BASE_KEY) || undefined);
+};
+
+const persistApiBase = (apiBase: string) => {
+  if (!isBrowser()) return;
+  window.sessionStorage.setItem(SELECTED_API_BASE_KEY, apiBase);
+};
+
 const getApiBaseCandidates = (fallbackBase?: string) => {
   const candidates = [
     normalizeBase(fallbackBase),
+    getPersistedApiBase(),
     normalizeBase(BASE),
     normalizeBase(getRenderDerivedBackend()),
     ...DEFAULT_API_BASES,
@@ -106,7 +125,6 @@ export type Stage2RunPayload = {
 export const startPipeline = async (companyUrl: string, payload?: Stage2RunPayload) => {
   const apiBases = getApiBaseCandidates();
   let res: Response | null = null;
-  let lastFailedBase = resolveApiBase();
 
   for (const apiBase of apiBases) {
     const targetUrl = payload ? `${apiBase}/run` : `${apiBase}/run?company=${companyUrl}`;
@@ -120,10 +138,10 @@ export const startPipeline = async (companyUrl: string, payload?: Stage2RunPaylo
           : undefined,
         body: payload ? JSON.stringify(payload) : undefined,
       });
-      lastFailedBase = apiBase;
+      persistApiBase(apiBase);
       break;
     } catch {
-      lastFailedBase = apiBase;
+      // Try the next configured backend base.
     }
   }
 
