@@ -241,3 +241,50 @@ export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fall
 
   return res.blob();
 };
+
+export type NaukriRunPayload = {
+  keywords: string[];
+  experience?: string;
+  locations: string[];
+  companies?: string[];
+  time_filter: "24h" | "7d" | "30d";
+};
+
+export type NaukriStatusResponse = {
+  status: "idle" | "running" | "completed" | "error";
+  message: string;
+  error?: string | null;
+  updated_at?: string | null;
+};
+
+export const runNaukriAgent = async (payload: NaukriRunPayload, fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  const res = await fetch(`${apiBase}/naukri/run-agent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getNaukriStatus = async (fallbackBase?: string): Promise<NaukriStatusResponse> => {
+  const apiBase = resolveApiBase(fallbackBase);
+  const res = await fetch(`${apiBase}/naukri/status`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getNaukriResults = async (fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  const res = await fetch(`${apiBase}/naukri/results`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const downloadNaukriCsv = async (fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  const res = await fetch(`${apiBase}/naukri/download`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.blob();
+};

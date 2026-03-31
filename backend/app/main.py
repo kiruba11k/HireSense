@@ -14,11 +14,13 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import Result, Task
 from app.schemas import LinkedInSearchRequest, Stage2Request
+from app.routers.naukri_agent import router as naukri_router
 from app.services.linkedin_search_service import LinkedInSearchService
 from app.services.pipeline import run_pipeline
 from app.services.websocket_manager import manager
 
 app = FastAPI(title="HireSense Stage-2 Intent Pipeline")
+app.include_router(naukri_router)
 
 app.add_middleware(
     CORSMiddleware,
