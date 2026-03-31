@@ -16,7 +16,7 @@ class Settings:
     ]
     CORS_ALLOW_ORIGIN_REGEX = os.getenv(
         "CORS_ALLOW_ORIGIN_REGEX",
-        r"https://hiresense-frontend.*\\.onrender\\.com",
+        r"https://hiresense-frontend.*\.onrender\.com",
     )
 
 
