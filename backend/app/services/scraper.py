@@ -63,11 +63,19 @@ class NaukriScraper:
         return f"https://www.naukri.com/{keyword_slug}-jobs-{page}-in-{location_slug}?k={quote_plus(keyword)}&l={quote_plus(location)}&experience={exp_param}"
 
     def _fetch(self, url: str, timeout: int = 20) -> str:
+        last_error: Exception | None = None
         for attempt in range(3):
-            response = requests.get(url, headers=self._headers(), timeout=timeout)
+            try:
+                response = requests.get(url, headers=self._headers(), timeout=timeout)
+            except requests.RequestException as exc:
+                last_error = exc
+                time.sleep(1.2 * (attempt + 1))
+                continue
             if response.status_code == 200 and "captcha" not in response.text.lower():
                 return response.text
             time.sleep(1.2 * (attempt + 1))
+        if last_error is not None:
+            raise RuntimeError("Unable to reach Naukri. Please retry shortly.") from last_error
         raise RuntimeError("Naukri temporarily blocked scraping")
 
     def _scrape_search_pages_with_browser(self, payload: NaukriRunRequest, status_cb=None) -> list[dict[str, str]]:
@@ -80,7 +88,12 @@ class NaukriScraper:
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"user-agent={random.choice(USER_AGENTS)}")
 
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        try:
+            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        except Exception:  # noqa: BLE001
+            if status_cb:
+                status_cb("Browser scraping unavailable, switching to HTTP fallback")
+            return []
         wait = WebDriverWait(driver, self.browser_wait_timeout)
         scraped: list[dict[str, str]] = []
         seen: set[tuple[str, str, str]] = set()
@@ -220,7 +233,12 @@ class NaukriScraper:
         if status_cb:
             status_cb("Scraping search pages")
 
-        staged_raw = await asyncio.to_thread(self._scrape_search_pages_with_browser, payload, status_cb)
+        try:
+            staged_raw = await asyncio.to_thread(self._scrape_search_pages_with_browser, payload, status_cb)
+        except Exception:  # noqa: BLE001
+            staged_raw = []
+            if status_cb:
+                status_cb("Browser scrape failed, retrying with HTTP fallback")
         if not staged_raw:
             for keyword in keywords:
                 for location in locations:
