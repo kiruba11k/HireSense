@@ -306,3 +306,18 @@ class AggregateRecord(BaseModel):
     recommended_action: str
     priority_tier: str
     signal_breakdown: dict[str, Any]
+
+
+class IntentAnalyzeRequest(BaseModel):
+    job_title: str = ""
+    job_description: str
+    company_name: str
+    historical_job_count: int = 0
+
+
+class IntentAnalyzeResponse(BaseModel):
+    company_name: str
+    intent_categories: list[str]
+    intent_type: str
+    intent_score: str
+    reasoning: str
