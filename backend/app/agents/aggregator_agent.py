@@ -39,7 +39,7 @@ async def aggregate_signals(
     if hiring >= 50:
         signals.append("Strong hiring momentum")
     if spike_bonus > 0:
-        signals.append("Naukri hiring spike detected")
+        signals.append("Hiring spike detected")
     if recruiter_bonus > 0:
         signals.append("Recruiter activity signal")
     if news_score >= 50:

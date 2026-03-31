@@ -7,7 +7,6 @@ from app.agents.aggregator_agent import aggregate_signals
 from app.agents.filings_agent import get_filings
 from app.agents.intent_agent import detect_intent
 from app.agents.linkedin_agent import linkedin_jobs
-from app.agents.naukri_agent import naukri_jobs
 from app.agents.news_agent import get_news
 from app.agents.research_agent import deep_research
 from app.agents.tech_agent import detect_tech
@@ -25,10 +24,7 @@ async def run_pipeline(task_id: str, payload: Stage2Request):
     try:
         # Layer 1: ingestion agents (parallel)
         linkedin_task = linkedin_jobs(payload.jobs, company_name)
-        naukri_task = naukri_jobs(payload.jobs, company_name)
-
-        linkedin_data, naukri_data = await asyncio.gather(linkedin_task, naukri_task)
-        jobs = linkedin_data + naukri_data
+        jobs = await linkedin_task
         await manager.send(task_id, {"type": "jobs", "data": jobs})
 
         # Layer 2: context agents (parallel)
