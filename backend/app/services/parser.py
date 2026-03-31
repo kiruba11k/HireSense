@@ -144,7 +144,93 @@ def parse_search_page(html: str, base_url: str) -> list[dict[str, str]]:
                     }
                 )
 
-    return jobs
+    if not jobs:
+        for script in soup.select("script"):
+            text = (script.string or script.get_text() or "").strip()
+            if not text:
+                continue
+
+            if "\"jobTuple\"" in text or "\"tuple\"" in text:
+                for match in re.finditer(r"\{[^{}]{0,2000}\}", text):
+                    snippet = match.group(0)
+                    if "jobId" not in snippet and "title" not in snippet:
+                        continue
+                    try:
+                        item = json.loads(snippet)
+                    except json.JSONDecodeError:
+                        continue
+
+                    title = item.get("title") or item.get("jobTitle") or ""
+                    company = item.get("companyName") or item.get("company") or "Unknown"
+                    location = item.get("location") or ""
+                    placeholders = item.get("placeholders")
+                    if not location and isinstance(placeholders, list) and placeholders:
+                        first_placeholder = placeholders[0]
+                        if isinstance(first_placeholder, dict):
+                            location = first_placeholder.get("label") or ""
+                    experience = item.get("experienceText") or item.get("experience") or ""
+                    posted = item.get("footerPlaceholderLabel") or item.get("postedDate") or ""
+                    skills = item.get("tagsAndSkills") or item.get("skills") or []
+                    if isinstance(skills, list):
+                        skill_text = ", ".join(str(skill).strip() for skill in skills if str(skill).strip())
+                    else:
+                        skill_text = str(skills)
+
+                    source_url = (
+                        item.get("jdURL")
+                        or item.get("url")
+                        or item.get("jobDetailUrl")
+                        or ""
+                    )
+                    if source_url and not str(source_url).startswith("http"):
+                        source_url = urljoin(base_url, str(source_url))
+
+                    if title:
+                        jobs.append(
+                            {
+                                "job_title": str(title).strip(),
+                                "company_name": str(company).strip() or "Unknown",
+                                "location": str(location).strip(),
+                                "experience_range": str(experience).strip(),
+                                "key_skills": skill_text,
+                                "role_responsibilities": str(item.get("jobDescription") or item.get("jobDetails") or "").strip(),
+                                "posted_date": _extract_posted_date(str(posted)),
+                                "source_url": str(source_url) if source_url else base_url,
+                            }
+                        )
+
+    if not jobs:
+        for node in soup.select("div[data-job-id], article[data-job-id], a[href*='job-listings']"):
+            anchor = node if node.name == "a" else node.select_one("a[href*='job-listings'], a[title], a.title")
+            if not anchor:
+                continue
+            title = anchor.get("title") or anchor.get_text(strip=True)
+            href = anchor.get("href", "")
+            if not title:
+                continue
+            jobs.append(
+                {
+                    "job_title": title,
+                    "company_name": "Unknown",
+                    "location": "",
+                    "experience_range": "",
+                    "key_skills": "",
+                    "role_responsibilities": "",
+                    "posted_date": None,
+                    "source_url": href if href.startswith("http") else urljoin(base_url, href),
+                }
+            )
+
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for job in jobs:
+        key = (job.get("job_title", "").strip().lower(), job.get("company_name", "").strip().lower())
+        if not key[0] or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(job)
+
+    return deduped
 
 
 def parse_job_details(html: str) -> tuple[str | None, list[str]]:
