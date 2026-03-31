@@ -5,6 +5,7 @@ type MotionExtras = {
   animate?: unknown;
   whileHover?: unknown;
   whileTap?: unknown;
+  transition?: unknown;
 };
 
 type MotionComponent<T extends ElementType> = React.ForwardRefExoticComponent<
