@@ -159,7 +159,14 @@ def parse_search_page(html: str, base_url: str) -> list[dict[str, str]]:
     soup = BeautifulSoup(html, "lxml")
     jobs: list[dict[str, str]] = []
 
-    cards = soup.select("article.jobTuple, div.srp-jobtuple-wrapper, div.row1, div.cust-job-tuple")
+    cards = soup.select("""
+article.jobTuple,
+div.srp-jobtuple-wrapper,
+div.row1,
+div.cust-job-tuple,
+div.styles_job-listing-card__Q0niy,
+div.jobTuple
+""")
     for card in cards:
         anchor = card.select_one("a.title") or card.select_one("a[href*='/job-listings-']") or card.select_one("a[title]")
         company_el = card.select_one("a.comp-name, span.comp-name, a.subTitle")
