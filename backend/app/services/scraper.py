@@ -23,10 +23,8 @@ from app.services.deduplicator import apply_hiring_spike, deduplicate_jobs
 from app.services.models import NaukriJob, NaukriRunRequest
 from app.services.parser import (
     build_job_record,
-    is_irrelevant_role,
     parse_job_details,
     parse_search_page,
-    should_filter_company,
     should_filter_seniority,
 )
 
@@ -40,7 +38,7 @@ class NaukriScraper:
     def __init__(self):
         self.max_pages = 3
         self.max_detail_pages = 30
-        self.max_concurrency = 4
+        self.max_concurrency = 8
         self.browser_wait_timeout = 15
 
     def _headers(self) -> dict[str, str]:
@@ -51,23 +49,28 @@ class NaukriScraper:
             "Connection": "keep-alive",
         }
 
-    def _slugify(self, value: str | None, default: str = "india") -> str:
-        if not value:
-            return default
-        slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
-        return slug or default
-
     def build_search_url(self, keyword: str, location: str, experience: str | None, page: int = 1) -> str:
-        keyword_slug = self._slugify(keyword, default="jobs")
-        location_slug = self._slugify(location, default="india")
-        exp_min = re.findall(r"\d+", experience or "")
-        exp_param = exp_min[0] if exp_min else "0"
+        keyword_slug = keyword.lower().replace(" ", "-")
+        location_slug = location.lower().replace(" ", "-")
 
-        base_url = f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}"
-        params = f"?k={quote_plus(keyword)}&l={quote_plus(location or 'India')}&experience={exp_param}"
+        base = f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}"
+
+        params: dict[str, str | int] = {
+            "k": keyword,
+            "l": location,
+        }
+
+        if experience:
+            exp = re.findall(r"\d+", experience)
+            if exp:
+                params["experience"] = exp[0]
+
         if page > 1:
-            params = f"{params}&pageNo={page}"
-        return f"{base_url}{params}"
+            params["pageNo"] = page
+
+        query = "&".join(f"{k}={quote_plus(str(v))}" for k, v in params.items())
+
+        return f"{base}?{query}"
 
     def _fetch(self, url: str, timeout: int = 20) -> str:
         last_error: Exception | None = None
@@ -282,10 +285,10 @@ class NaukriScraper:
             if built is None:
                 continue
 
-            if payload.remove_consultancy_duplicates and should_filter_company(built.company_name):
-                continue
-            if payload.exclude_irrelevant_roles and is_irrelevant_role(built.job_title, built.role_responsibilities or ""):
-                continue
+            # if payload.remove_consultancy_duplicates and should_filter_company(built.company_name):
+            #     continue
+            # if payload.exclude_irrelevant_roles and is_irrelevant_role(built.job_title, built.role_responsibilities or ""):
+            #     continue
             if should_filter_seniority(built.job_title):
                 continue
 
