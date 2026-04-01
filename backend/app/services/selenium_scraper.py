@@ -104,4 +104,3 @@ class NaukriSeleniumScraper:
         return all_jobs
 
 
-    print(f"Scraped {len(results)} jobs.")
