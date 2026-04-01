@@ -13,3 +13,5 @@ class NaukriRunRequest(BaseModel):
     max_pages: int = 2
     remove_consultancy_duplicates: bool = True
     exclude_irrelevant_roles: bool = True
+    start_urls: list[str] = Field(default_factory=list)
+    custom_filters: dict[str, str] = Field(default_factory=dict)

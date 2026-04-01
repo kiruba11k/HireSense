@@ -76,6 +76,16 @@ export default function SearchForm({ onRun, loading }: Props) {
   const [maxPages, setMaxPages] = useState(3);
   const [removeConsultancies, setRemoveConsultancies] = useState(true);
   const [excludeIrrelevant, setExcludeIrrelevant] = useState(true);
+  const [manualStartUrl, setManualStartUrl] = useState("");
+  const [workModes, setWorkModes] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [salaryRanges, setSalaryRanges] = useState<string[]>([]);
+  const [companyTypes, setCompanyTypes] = useState<string[]>([]);
+  const [roleCategories, setRoleCategories] = useState<string[]>([]);
+  const [educationFilters, setEducationFilters] = useState<string[]>([]);
+  const [postedByFilters, setPostedByFilters] = useState<string[]>([]);
+  const [industryFilters, setIndustryFilters] = useState<string[]>([]);
+  const [topCompanies, setTopCompanies] = useState<string[]>([]);
 
   const hasInputValues = useMemo(() => keywords.length > 0 && locations.length > 0, [keywords, locations]);
   const naukriUrlPreview = useMemo(() => {
@@ -105,8 +115,9 @@ export default function SearchForm({ onRun, loading }: Props) {
     if (seniorityFilter.length) query.set("seniority", seniorityFilter.join(", "));
     if (maxPages > 1) query.set("maxPages", String(maxPages));
 
+    if (manualStartUrl.trim()) return manualStartUrl.trim();
     return `https://www.naukri.com/${keywordPath}-jobs-in-${locationPath}?${query.toString()}`;
-  }, [keywords, locations, companies, experience, timeFilter, historicalWindow, functionFilter, seniorityFilter, maxPages]);
+  }, [keywords, locations, companies, experience, timeFilter, historicalWindow, functionFilter, seniorityFilter, maxPages, manualStartUrl]);
   const hasValidNaukriUrlPreview = useMemo(
     () => /^https:\/\/www\.naukri\.com\/[a-z0-9-]+-jobs-in-[a-z0-9-]+(\?.+)?$/i.test(naukriUrlPreview),
     [naukriUrlPreview]
@@ -115,6 +126,20 @@ export default function SearchForm({ onRun, loading }: Props) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!hasInputValues || !hasValidNaukriUrlPreview) return;
+    const customFilters: Record<string, string> = {};
+    const appendFilter = (key: string, values: string[]) => {
+      if (values.length) customFilters[key] = values.join(", ");
+    };
+    appendFilter("workMode", workModes);
+    appendFilter("department", departments);
+    appendFilter("salary", salaryRanges);
+    appendFilter("companyType", companyTypes);
+    appendFilter("roleCategory", roleCategories);
+    appendFilter("education", educationFilters);
+    appendFilter("postedBy", postedByFilters);
+    appendFilter("industry", industryFilters);
+    appendFilter("topCompanies", topCompanies);
+
     await onRun({
       keywords,
       experience,
@@ -127,6 +152,8 @@ export default function SearchForm({ onRun, loading }: Props) {
       max_pages: maxPages,
       remove_consultancy_duplicates: removeConsultancies,
       exclude_irrelevant_roles: excludeIrrelevant,
+      start_urls: manualStartUrl.trim() ? [manualStartUrl.trim()] : [],
+      custom_filters: customFilters,
     });
   };
 
@@ -213,6 +240,42 @@ export default function SearchForm({ onRun, loading }: Props) {
           <input className="form-check-input" type="checkbox" checked={excludeIrrelevant} onChange={(e) => setExcludeIrrelevant(e.target.checked)} id="exclude-irrelevant" />
           <label className="form-check-label" htmlFor="exclude-irrelevant">Exclude irrelevant roles</label>
         </div>
+      </div>
+      <div className="col-12">
+        <label className="form-label text-info">Manual Naukri Start URL (optional)</label>
+        <input
+          className="form-control bg-dark text-light border-info"
+          value={manualStartUrl}
+          onChange={(e) => setManualStartUrl(e.target.value)}
+          placeholder="Paste an exact Naukri URL with filters to run the actor with practical filters"
+        />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Work mode" optional values={workModes} onChange={setWorkModes} placeholder="Work from office, Hybrid, Remote" />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Department" optional values={departments} onChange={setDepartments} placeholder="Engineering - Software & QA, Data Science..." />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Salary" optional values={salaryRanges} onChange={setSalaryRanges} placeholder="6-10 Lakhs, 10-15 Lakhs..." />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Company type" optional values={companyTypes} onChange={setCompanyTypes} placeholder="Foreign MNC, Corporate..." />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Role category" optional values={roleCategories} onChange={setRoleCategories} placeholder="Software Development..." />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Education" optional values={educationFilters} onChange={setEducationFilters} placeholder="Any Graduate, B.Tech/B.E..." />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Posted by" optional values={postedByFilters} onChange={setPostedByFilters} placeholder="Company Jobs, Consultant Jobs" />
+      </div>
+      <div className="col-md-6">
+        <ChipsInput label="Industry" optional values={industryFilters} onChange={setIndustryFilters} placeholder="IT Services & Consulting..." />
+      </div>
+      <div className="col-12">
+        <ChipsInput label="Top companies" optional values={topCompanies} onChange={setTopCompanies} placeholder="Accenture, Infosys, IBM..." />
       </div>
       <div className="col-12 d-flex justify-content-end">
         <button type="submit" className="btn btn-info px-4" disabled={loading || !hasInputValues || !hasValidNaukriUrlPreview}>

@@ -33,7 +33,9 @@ export default function NaukriAgent() {
         return;
       }
       setStatus("error");
-      setMessage(error?.message?.includes("blocked") ? "Naukri temporarily blocked scraping" : "Failed to run Naukri agent");
+      const fallbackMessage = "Failed to run Naukri agent";
+      const detailedMessage = typeof error?.message === "string" && error.message.trim() ? error.message.trim() : fallbackMessage;
+      setMessage(detailedMessage.includes("blocked") ? "Naukri temporarily blocked scraping" : detailedMessage);
     }
   };
 
