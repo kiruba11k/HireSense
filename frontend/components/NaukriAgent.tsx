@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 import SearchForm from "./SearchForm";
 import ResultsTable from "./ResultsTable";
 import StatusTracker from "./StatusTracker";
-import { downloadNaukriCsv, getNaukriResults, getNaukriStatus, NaukriRunPayload, runNaukriAgent } from "../services/api";
+import { NaukriRunPayload, runNaukriAgent } from "../services/api";
 
 type Row = {
   [key: string]: unknown;
@@ -15,30 +15,15 @@ export default function NaukriAgent() {
   const [message, setMessage] = useState("Ready to scrape Naukri.");
   const [rows, setRows] = useState<Row[]>([]);
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    if (status === "running") {
-      timer = setInterval(async () => {
-        const s = await getNaukriStatus();
-        setStatus(s.status);
-        setMessage(s.message || "Running");
-        if (s.status === "completed") {
-          const data = await getNaukriResults();
-          setRows(data.rows || []);
-        }
-      }, 3000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [status]);
-
   const run = async (payload: NaukriRunPayload) => {
     try {
       setRows([]);
       setStatus("running");
       setMessage("Starting Naukri pipeline");
-      await runNaukriAgent(payload);
+      const response = await runNaukriAgent(payload);
+      setRows(response.rows || []);
+      setStatus("completed");
+      setMessage(`Completed. ${response.count || 0} jobs found.`);
     } catch (error: any) {
       setStatus("error");
       setMessage(error?.message?.includes("blocked") ? "Naukri temporarily blocked scraping" : "Failed to run Naukri agent");
@@ -46,7 +31,18 @@ export default function NaukriAgent() {
   };
 
   const onDownload = async () => {
-    const blob = await downloadNaukriCsv();
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const escapeCsv = (value: unknown) => {
+      const stringValue = Array.isArray(value) ? value.join(", ") : value ?? "";
+      const serialized = String(stringValue).replace(/"/g, '""');
+      return `"${serialized}"`;
+    };
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) => headers.map((header) => escapeCsv(row[header])).join(",")),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const href = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = href;

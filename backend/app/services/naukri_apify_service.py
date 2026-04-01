@@ -11,6 +11,26 @@ from app.config import settings
 class NaukriApifyService:
     """Adapter for the third-party Apify Naukri scraper actor."""
 
+    OUTPUT_COLUMNS = [
+        "jobId",
+        "staticCompanyName",
+        "title",
+        "functionalArea",
+        "jobRole",
+        "experienceText",
+        "minimumExperience",
+        "maximumExperience",
+        "locations",
+        "createdDate",
+        "description",
+        "shortDescription",
+        "keySkills",
+        "url",
+        "applyRedirectUrl",
+        "companyApplyUrl",
+        "scrapedAt",
+    ]
+
     def __init__(
         self,
         actor_id: str | None = None,
@@ -45,14 +65,30 @@ class NaukriApifyService:
         }
         freshness = freshness_map.get(getattr(payload, "time_filter", "7d"), "7")
 
+        max_pages = max(1, min(int(getattr(payload, "max_pages", 1) or 1), 25))
+
         urls: list[str] = []
         for location in locations:
             location_slug = self._slugify(location)
             base = f"https://www.naukri.com/{keyword_path}-jobs-in-{location_slug}"
-            url = f"{base}?k={query_keywords}&nignbevent_src=jobsearchDeskGNB&freshness={freshness}"
-            urls.append(url)
+            for page_no in range(1, max_pages + 1):
+                page_query = f"&pageNo={page_no}" if page_no > 1 else ""
+                url = f"{base}?k={query_keywords}&nignbevent_src=jobsearchDeskGNB&freshness={freshness}{page_query}"
+                urls.append(url)
 
         return urls
+
+    def _filter_output_columns(self, items: Any) -> list[dict[str, Any]]:
+        if not isinstance(items, list):
+            return []
+
+        filtered_rows: list[dict[str, Any]] = []
+        for row in items:
+            if not isinstance(row, dict):
+                continue
+            normalized = {column: row.get(column) for column in self.OUTPUT_COLUMNS}
+            filtered_rows.append(normalized)
+        return filtered_rows
 
     def _build_actor_input(self, payload: Any) -> dict[str, Any]:
         return {
@@ -88,5 +124,5 @@ class NaukriApifyService:
 
         return {
             "status_code": response.status_code,
-            "data": data,
+            "data": self._filter_output_columns(data),
         }

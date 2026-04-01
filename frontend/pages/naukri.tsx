@@ -15,8 +15,8 @@ export default function NaukriPage() {
       </Head>
       <main style={{ minHeight: "100vh", background: "#0F172A" }}>
         <div className="container pt-4">
-          <Link href="/dashboard" className="btn btn-outline-light btn-sm">
-            ← Back to Dashboard
+          <Link href="/" className="btn btn-outline-light btn-sm">
+            ← Back to Main Dashboard
           </Link>
         </div>
         <NaukriAgent />
