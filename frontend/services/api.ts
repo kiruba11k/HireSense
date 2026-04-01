@@ -314,7 +314,25 @@ export const runNaukriAgent = async (payload: NaukriRunPayload, fallbackBase?: s
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    let detail: unknown = null;
+    try {
+      const errorPayload = await res.json();
+      detail = errorPayload?.detail ?? null;
+    } catch {
+      detail = await res.text();
+    }
+
+    const message =
+      typeof detail === "string"
+        ? detail
+        : "Naukri agent stopped before completion.";
+    const error = new Error(message) as Error & { rows?: Record<string, unknown>[] };
+    if (Array.isArray(detail)) {
+      error.rows = detail as Record<string, unknown>[];
+    }
+    throw error;
+  }
   return res.json();
 };
 

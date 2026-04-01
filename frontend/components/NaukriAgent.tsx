@@ -25,6 +25,13 @@ export default function NaukriAgent() {
       setStatus("completed");
       setMessage(`Completed. ${response.count || 0} jobs found.`);
     } catch (error: any) {
+      const partialRows = Array.isArray(error?.rows) ? error.rows : [];
+      if (partialRows.length) {
+        setRows(partialRows);
+        setStatus("completed");
+        setMessage(`Run stopped early. Partial results available (${partialRows.length} jobs).`);
+        return;
+      }
       setStatus("error");
       setMessage(error?.message?.includes("blocked") ? "Naukri temporarily blocked scraping" : "Failed to run Naukri agent");
     }
