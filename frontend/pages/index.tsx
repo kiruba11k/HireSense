@@ -10,8 +10,6 @@ import { connectWS } from "../services/websocket";
 
 const AGENT_CONFIG = [
   { id: "linkedin", name: "LinkedIn Job Scraper", icon: "fa-linkedin", fields: ["Company URL", "Role Keywords", "Location"] },
-  { id: "naukri", name: "Naukri Job Scraper", icon: "fa-briefcase", fields: ["Keywords", "Experience", "Location"] },
-  { id: "interpreter", name: "Hiring Intent Interpreter", icon: "fa-brain", fields: ["Intent Threshold", "Hiring Velocity", "Urgency"] },
   { id: "tech-stack", name: "Tech Stack Detector", icon: "fa-layer-group", fields: ["Domain", "Technologies", "Confidence"] },
   { id: "news", name: "Company News & Events Miner", icon: "fa-newspaper", fields: ["Company", "Time Range", "Event Type"] },
   { id: "tender", name: "Tender / Procurement Tracker", icon: "fa-file-signature", fields: ["Region", "Tender Value", "Industry"] },
@@ -185,14 +183,6 @@ export default function Home() {
     }
     if (activeView === "linkedin") {
       router.push("/linkedin");
-      return;
-    }
-    if (activeView === "naukri") {
-      router.push("/naukri");
-      return;
-    }
-    if (activeView === "interpreter") {
-      router.push("/upload");
       return;
     }
   }, [activeView, router, router.query.view]);

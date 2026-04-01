@@ -47,11 +47,20 @@ class NaukriApifyService:
         return "-".join(value.strip().lower().split())
 
     def _build_start_urls(self, payload: Any) -> list[str]:
+        manual_urls = [url.strip() for url in (getattr(payload, "start_urls", []) or []) if isinstance(url, str) and url.strip()]
+        if manual_urls:
+            return manual_urls
+
         keywords = [keyword.strip() for keyword in (payload.keywords or []) if keyword and keyword.strip()]
         locations = [location.strip() for location in (payload.locations or []) if location and location.strip()]
         companies = [company.strip() for company in (getattr(payload, "companies", []) or []) if company and company.strip()]
         seniority_filter = [item.strip() for item in (getattr(payload, "seniority_filter", []) or []) if item and item.strip()]
         function_filter = [item.strip() for item in (getattr(payload, "function_filter", []) or []) if item and item.strip()]
+        custom_filters = {
+            str(key).strip(): str(value).strip()
+            for key, value in (getattr(payload, "custom_filters", {}) or {}).items()
+            if str(key).strip() and str(value).strip()
+        }
         experience = (getattr(payload, "experience", None) or "").strip()
         historical_window = int(getattr(payload, "historical_window", 30) or 30)
 
@@ -93,19 +102,29 @@ class NaukriApifyService:
                     query_parts.append(f"functionArea={quote_plus(', '.join(function_filter))}")
                 if seniority_filter:
                     query_parts.append(f"seniority={quote_plus(', '.join(seniority_filter))}")
+                for key, value in custom_filters.items():
+                    query_parts.append(f"{quote_plus(key)}={quote_plus(value)}")
                 url = f"{base}?{'&'.join(query_parts)}{page_query}"
                 urls.append(url)
 
         return urls
 
+    def _extract_items(self, payload: Any) -> list[dict[str, Any]]:
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        if isinstance(payload, dict):
+            nested = payload.get("items") or payload.get("data") or payload.get("results")
+            if isinstance(nested, list):
+                return [item for item in nested if isinstance(item, dict)]
+        return []
+
     def _filter_output_columns(self, items: Any) -> list[dict[str, Any]]:
-        if not isinstance(items, list):
+        extracted_items = self._extract_items(items)
+        if not extracted_items:
             return []
 
         filtered_rows: list[dict[str, Any]] = []
-        for row in items:
-            if not isinstance(row, dict):
-                continue
+        for row in extracted_items:
             normalized = {column: row.get(column) for column in self.OUTPUT_COLUMNS}
             filtered_rows.append(normalized)
         return filtered_rows
@@ -142,7 +161,8 @@ class NaukriApifyService:
         except ValueError:
             data = response.text
 
+        parsed_data = self._filter_output_columns(data) if response.status_code < 400 else data
         return {
             "status_code": response.status_code,
-            "data": self._filter_output_columns(data),
+            "data": parsed_data,
         }

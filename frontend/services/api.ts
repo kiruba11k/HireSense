@@ -254,6 +254,8 @@ export type NaukriRunPayload = {
   max_pages?: number;
   remove_consultancy_duplicates?: boolean;
   exclude_irrelevant_roles?: boolean;
+  start_urls?: string[];
+  custom_filters?: Record<string, string>;
 };
 
 export type NaukriStatusResponse = {
