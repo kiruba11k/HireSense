@@ -20,6 +20,7 @@ _state = {
     "updated_at": None,
     "error": None,
     "results": [],
+    "result_count": 0,
 }
 
 
@@ -31,6 +32,7 @@ async def _run_agent(payload: NaukriRunRequest):
     _state["updated_at"] = _state["started_at"]
     _state["error"] = None
     _state["results"] = []
+    _state["result_count"] = 0
 
     def update_message(message: str):
         _state["message"] = message
@@ -52,7 +54,11 @@ async def _run_agent(payload: NaukriRunRequest):
         return
 
     _state["status"] = "completed"
-    _state["message"] = "Completed"
+    _state["result_count"] = len(jobs)
+    if jobs:
+        _state["message"] = f"Completed with {_state['result_count']} jobs"
+    else:
+        _state["message"] = "Completed with 0 jobs. Try broader filters (time/function/company) and retry."
     _state["results"] = [job.model_dump(mode="json") for job in jobs]
     _state["updated_at"] = datetime.utcnow().isoformat()
 
@@ -72,12 +78,13 @@ async def get_status():
         "message": _state["message"],
         "error": _state["error"],
         "updated_at": _state["updated_at"],
+        "result_count": _state["result_count"],
     }
 
 
 @router.get("/results")
 async def get_results():
-    return {"status": _state["status"], "rows": _state["results"]}
+    return {"status": _state["status"], "count": _state["result_count"], "rows": _state["results"]}
 
 
 @router.get("/download")
