@@ -3,6 +3,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 class NaukriSeleniumScraper:
@@ -10,8 +12,6 @@ class NaukriSeleniumScraper:
     def __init__(self):
 
         chrome_options = Options()
-
-        # REQUIRED for Render containers
         chrome_options.binary_location = "/usr/bin/chromium"
 
         chrome_options.add_argument("--headless")
@@ -21,10 +21,9 @@ class NaukriSeleniumScraper:
 
         service = Service("/usr/bin/chromedriver")
 
-        self.driver = webdriver.Chrome(
-            service=service,
-            options=chrome_options
-        )
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+
+        self.wait = WebDriverWait(self.driver, 15)
 
     def build_url(self, keyword, location):
 
@@ -38,14 +37,16 @@ class NaukriSeleniumScraper:
         jobs = []
 
         for keyword in keywords:
-
             for location in locations:
 
                 url = self.build_url(keyword, location)
 
                 self.driver.get(url)
 
-                time.sleep(4)
+                # WAIT for jobs to appear
+                self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ".srp-jobtuple-wrapper"))
+                )
 
                 for page in range(pages):
 
@@ -89,9 +90,11 @@ class NaukriSeleniumScraper:
 
                     # go to next page
                     try:
-                        next_btn = self.driver.find_element(By.XPATH, "//a[text()='Next']")
+                        next_btn = self.wait.until(
+                            EC.element_to_be_clickable((By.XPATH, "//a[text()='Next']"))
+                        )
                         next_btn.click()
-                        time.sleep(4)
+                        time.sleep(3)
                     except:
                         break
 
