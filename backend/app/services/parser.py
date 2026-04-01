@@ -29,6 +29,72 @@ IRRELEVANT_ROLE_KEYWORDS = {
 }
 
 
+def _walk_json(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _walk_json(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _walk_json(item)
+
+
+def _extract_jobs_from_next_data(soup: BeautifulSoup, base_url: str) -> list[dict[str, str]]:
+    next_data = soup.select_one("script#__NEXT_DATA__")
+    if not next_data:
+        return []
+
+    text = (next_data.string or next_data.get_text() or "").strip()
+    if not text:
+        return []
+
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return []
+
+    jobs: list[dict[str, str]] = []
+    for node in _walk_json(payload):
+        title = (node.get("title") or node.get("jobTitle") or "").strip() if isinstance(node, dict) else ""
+        if not title:
+            continue
+
+        company = (
+            node.get("companyName")
+            or node.get("company")
+            or ((node.get("compInfo") or {}).get("companyName") if isinstance(node.get("compInfo"), dict) else "")
+            or "Unknown"
+        )
+        location = node.get("location") or node.get("jobLocation") or ""
+        if isinstance(location, list):
+            location = ", ".join(str(item).strip() for item in location if str(item).strip())
+        experience = node.get("experienceText") or node.get("experience") or node.get("exp") or ""
+        posted = node.get("footerPlaceholderLabel") or node.get("postedDate") or node.get("createdDate") or ""
+        skills = node.get("tagsAndSkills") or node.get("skills") or []
+        if isinstance(skills, list):
+            skill_text = ", ".join(str(skill).strip() for skill in skills if str(skill).strip())
+        else:
+            skill_text = str(skills).strip()
+
+        source_url = node.get("jdURL") or node.get("url") or node.get("jobDetailUrl") or ""
+        if source_url and not str(source_url).startswith("http"):
+            source_url = urljoin(base_url, str(source_url))
+
+        jobs.append(
+            {
+                "job_title": title,
+                "company_name": str(company).strip() or "Unknown",
+                "location": str(location).strip(),
+                "experience_range": str(experience).strip(),
+                "key_skills": skill_text,
+                "role_responsibilities": str(node.get("jobDescription") or node.get("jobDetails") or "").strip(),
+                "posted_date": _extract_posted_date(str(posted)),
+                "source_url": str(source_url) if source_url else base_url,
+            }
+        )
+    return jobs
+
+
 def _extract_posted_date(text: str) -> str | None:
     if not text:
         return None
@@ -143,6 +209,9 @@ def parse_search_page(html: str, base_url: str) -> list[dict[str, str]]:
                         "source_url": item.get("url", base_url),
                     }
                 )
+
+    if not jobs:
+        jobs = _extract_jobs_from_next_data(soup, base_url)
 
     if not jobs:
         for script in soup.select("script"):
