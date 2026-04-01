@@ -6,6 +6,8 @@ class Settings:
     ENV = os.getenv("ENV", "dev")
     LINKEDIN_APIFY_ACTOR_ID = os.getenv("LINKEDIN_APIFY_ACTOR_ID", "curious_coder~linkedin-jobs-scraper")
     LINKEDIN_APIFY_TOKEN = os.getenv("LINKEDIN_APIFY_TOKEN")
+    NAUKRI_APIFY_ACTOR_ID = os.getenv("NAUKRI_APIFY_ACTOR_ID", "memo23~naukri-scraper")
+    NAUKRI_APIFY_TOKEN = os.getenv("NAUKRI_APIFY_TOKEN")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = os.getenv("GROQ_MODEL", "mixtral-8x7b-32768")
     ENABLE_JUDGE = os.getenv("ENABLE_JUDGE", "false")
