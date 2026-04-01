@@ -2,7 +2,6 @@ import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 
 
@@ -10,15 +9,21 @@ class NaukriSeleniumScraper:
 
     def __init__(self):
 
-        options = Options()
+        chrome_options = Options()
 
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        # REQUIRED for Render containers
+        chrome_options.binary_location = "/usr/bin/chromium"
+
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+
+        service = Service("/usr/bin/chromedriver")
 
         self.driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options
+            service=service,
+            options=chrome_options
         )
 
     def build_url(self, keyword, location):
@@ -82,6 +87,7 @@ class NaukriSeleniumScraper:
                             "source_url": link
                         })
 
+                    # go to next page
                     try:
                         next_btn = self.driver.find_element(By.XPATH, "//a[text()='Next']")
                         next_btn.click()
