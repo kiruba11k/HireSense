@@ -79,12 +79,36 @@ export default function SearchForm({ onRun, loading }: Props) {
 
   const hasInputValues = useMemo(() => keywords.length > 0 && locations.length > 0, [keywords, locations]);
   const naukriUrlPreview = useMemo(() => {
-    const primaryKeyword = (keywords[0] || "developer").trim().toLowerCase().replace(/\s+/g, "-");
-    const primaryLocation = (locations[0] || "india").trim().toLowerCase().replace(/\s+/g, "-");
-    return `https://www.naukri.com/${primaryKeyword}-jobs-in-${primaryLocation}`;
-  }, [keywords, locations]);
+    const normalizedKeywords = keywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+    const normalizedLocations = locations
+      .map((location) => location.trim())
+      .filter(Boolean);
+    const normalizedCompanies = companies
+      .map((company) => company.trim())
+      .filter(Boolean);
+
+    const keywordPath = (normalizedKeywords.join(" ") || "developer").toLowerCase().replace(/\s+/g, "-");
+    const locationPath = (normalizedLocations[0] || "india").toLowerCase().replace(/\s+/g, "-");
+    const query = new URLSearchParams({
+      k: normalizedKeywords.join(", "),
+      l: normalizedLocations.join(", "),
+      experience,
+      freshness: timeFilter === "24h" ? "1" : timeFilter === "30d" ? "30" : "7",
+      history: String(historicalWindow),
+      nignbevent_src: "jobsearchDeskGNB",
+    });
+
+    if (normalizedCompanies.length) query.set("company", normalizedCompanies.join(", "));
+    if (functionFilter.length) query.set("functionArea", functionFilter.join(", "));
+    if (seniorityFilter.length) query.set("seniority", seniorityFilter.join(", "));
+    if (maxPages > 1) query.set("maxPages", String(maxPages));
+
+    return `https://www.naukri.com/${keywordPath}-jobs-in-${locationPath}?${query.toString()}`;
+  }, [keywords, locations, companies, experience, timeFilter, historicalWindow, functionFilter, seniorityFilter, maxPages]);
   const hasValidNaukriUrlPreview = useMemo(
-    () => /^https:\/\/www\.naukri\.com\/[a-z0-9-]+-jobs-in-[a-z0-9-]+$/i.test(naukriUrlPreview),
+    () => /^https:\/\/www\.naukri\.com\/[a-z0-9-]+-jobs-in-[a-z0-9-]+(\?.+)?$/i.test(naukriUrlPreview),
     [naukriUrlPreview]
   );
 
@@ -150,9 +174,16 @@ export default function SearchForm({ onRun, loading }: Props) {
       </div>
       <div className="col-md-3">
         <label className="form-label text-info">Seniority Filter</label>
-        <select className="form-select bg-dark text-light border-info" multiple value={seniorityFilter} onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (option) => option.value))}>
+        <select
+          className="form-select text-light border-info"
+          style={{ background: "linear-gradient(145deg, rgba(56,189,248,.25), rgba(14,116,144,.3)), #0b1220", boxShadow: "0 0 0 1px rgba(125,211,252,.2) inset" }}
+          multiple
+          value={seniorityFilter}
+          onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (option) => option.value))}
+        >
           {seniorityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
+        <small className="text-info-emphasis">Use Ctrl/Cmd + click to select multiple levels.</small>
       </div>
       <div className="col-12">
         <ChipsInput label="Locations" values={locations} onChange={setLocations} placeholder="Add city and press Enter" />
@@ -162,9 +193,16 @@ export default function SearchForm({ onRun, loading }: Props) {
       </div>
       <div className="col-md-6">
         <label className="form-label text-info">Function Filter</label>
-        <select className="form-select bg-dark text-light border-info" multiple value={functionFilter} onChange={(e) => setFunctionFilter(Array.from(e.target.selectedOptions, (option) => option.value))}>
+        <select
+          className="form-select text-light border-info"
+          style={{ background: "linear-gradient(145deg, rgba(34,197,94,.25), rgba(20,83,45,.3)), #0b1220", boxShadow: "0 0 0 1px rgba(74,222,128,.2) inset" }}
+          multiple
+          value={functionFilter}
+          onChange={(e) => setFunctionFilter(Array.from(e.target.selectedOptions, (option) => option.value))}
+        >
           {functionOptions.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
+        <small className="text-success">Multi-select enabled for broader matching.</small>
       </div>
       <div className="col-md-6 d-flex align-items-end gap-4">
         <div className="form-check">

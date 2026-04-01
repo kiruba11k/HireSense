@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 
 import NaukriAgent from "../components/NaukriAgent";
 
@@ -14,9 +15,9 @@ export default function NaukriPage() {
       </Head>
       <main style={{ minHeight: "100vh", background: "#0F172A" }}>
         <div className="container pt-4">
-          <a href="https://hiresense-frontend-on61.onrender.com/" className="btn btn-outline-light btn-sm">
+          <Link href="/" className="btn btn-outline-light btn-sm">
             ← Back to Main Dashboard
-          </a>
+          </Link>
         </div>
         <NaukriAgent />
       </main>
