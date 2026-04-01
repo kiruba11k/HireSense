@@ -251,6 +251,7 @@ export type NaukriRunPayload = {
   seniority_filter?: string[];
   function_filter?: string[];
   historical_window?: number;
+  max_pages?: number;
   remove_consultancy_duplicates?: boolean;
   exclude_irrelevant_roles?: boolean;
 };

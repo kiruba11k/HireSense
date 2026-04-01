@@ -65,6 +65,8 @@ class NaukriScraper:
 
         base_url = f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}"
         params = f"?k={quote_plus(keyword)}&l={quote_plus(location or 'India')}&experience={exp_param}"
+        if page > 1:
+            params = f"{params}&pageNo={page}"
         return f"{base_url}{params}"
 
     def _fetch(self, url: str, timeout: int = 20) -> str:
@@ -231,6 +233,7 @@ class NaukriScraper:
         return amount <= max_days
 
     async def run(self, payload: NaukriRunRequest, status_cb=None) -> list[NaukriJob]:
+        self.max_pages = payload.max_pages
         keywords = payload.keywords or ["AI"]
         locations = payload.locations or ["India"]
         staged_raw: list[dict[str, str]] = []

@@ -73,6 +73,7 @@ export default function SearchForm({ onRun, loading }: Props) {
   const [functionFilter, setFunctionFilter] = useState<string[]>(["Technology", "IT"]);
   const [timeFilter, setTimeFilter] = useState<"24h" | "7d" | "30d">("7d");
   const [historicalWindow, setHistoricalWindow] = useState(30);
+  const [maxPages, setMaxPages] = useState(3);
   const [removeConsultancies, setRemoveConsultancies] = useState(true);
   const [excludeIrrelevant, setExcludeIrrelevant] = useState(true);
 
@@ -90,6 +91,7 @@ export default function SearchForm({ onRun, loading }: Props) {
       seniority_filter: seniorityFilter,
       function_filter: functionFilter,
       historical_window: historicalWindow,
+      max_pages: maxPages,
       remove_consultancy_duplicates: removeConsultancies,
       exclude_irrelevant_roles: excludeIrrelevant,
     });
@@ -120,6 +122,10 @@ export default function SearchForm({ onRun, loading }: Props) {
       <div className="col-md-3">
         <label className="form-label text-info">Historical Window (days)</label>
         <input type="number" min={1} max={180} className="form-control bg-dark text-light border-info" value={historicalWindow} onChange={(e) => setHistoricalWindow(Number(e.target.value) || 30)} />
+      </div>
+      <div className="col-md-3">
+        <label className="form-label text-info">Max Pages to Scrape</label>
+        <input type="number" min={1} max={25} className="form-control bg-dark text-light border-info" value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value) || 3)} />
       </div>
       <div className="col-md-3">
         <label className="form-label text-info">Seniority Filter</label>

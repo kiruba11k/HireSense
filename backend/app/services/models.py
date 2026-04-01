@@ -14,6 +14,7 @@ class NaukriRunRequest(BaseModel):
     seniority_filter: list[str] = Field(default_factory=list)
     function_filter: list[str] = Field(default_factory=list)
     historical_window: int = Field(default=30, ge=1, le=180)
+    max_pages: int = Field(default=3, ge=1, le=25)
     remove_consultancy_duplicates: bool = True
     exclude_irrelevant_roles: bool = True
 

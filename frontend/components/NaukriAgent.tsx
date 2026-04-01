@@ -7,14 +7,7 @@ import StatusTracker from "./StatusTracker";
 import { downloadNaukriCsv, getNaukriResults, getNaukriStatus, NaukriRunPayload, runNaukriAgent } from "../services/api";
 
 type Row = {
-  job_id: string;
-  job_title: string;
-  company_name: string;
-  location?: string;
-  experience_range?: string;
-  posted_date?: string;
-  key_skills?: string[];
-  source: string;
+  [key: string]: unknown;
 };
 
 export default function NaukriAgent() {
