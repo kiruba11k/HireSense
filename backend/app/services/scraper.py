@@ -13,11 +13,9 @@ try:
     from selenium import webdriver
     from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
     from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait
-    from webdriver_manager.chrome import ChromeDriverManager
 except ImportError:  # pragma: no cover - optional runtime dependency
     webdriver = None
 
@@ -53,14 +51,21 @@ class NaukriScraper:
             "Connection": "keep-alive",
         }
 
+    def _slugify(self, value: str | None, default: str = "india") -> str:
+        if not value:
+            return default
+        slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+        return slug or default
+
     def build_search_url(self, keyword: str, location: str, experience: str | None, page: int = 1) -> str:
-        keyword_slug = quote_plus(keyword.lower().replace(" ", "-"))
-        location_slug = quote_plus(location.lower().replace(" ", "-")) if location else "india"
+        keyword_slug = self._slugify(keyword, default="jobs")
+        location_slug = self._slugify(location, default="india")
         exp_min = re.findall(r"\d+", experience or "")
         exp_param = exp_min[0] if exp_min else "0"
-        if page == 1:
-            return f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}?k={quote_plus(keyword)}&l={quote_plus(location)}&experience={exp_param}"
-        return f"https://www.naukri.com/{keyword_slug}-jobs-{page}-in-{location_slug}?k={quote_plus(keyword)}&l={quote_plus(location)}&experience={exp_param}"
+
+        base_url = f"https://www.naukri.com/{keyword_slug}-jobs-in-{location_slug}"
+        params = f"?k={quote_plus(keyword)}&l={quote_plus(location or 'India')}&experience={exp_param}"
+        return f"{base_url}{params}"
 
     def _fetch(self, url: str, timeout: int = 20) -> str:
         last_error: Exception | None = None
@@ -89,7 +94,7 @@ class NaukriScraper:
         chrome_options.add_argument(f"user-agent={random.choice(USER_AGENTS)}")
 
         try:
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+            driver = webdriver.Chrome(options=chrome_options)
         except Exception:  # noqa: BLE001
             if status_cb:
                 status_cb("Browser scraping unavailable, switching to HTTP fallback")
