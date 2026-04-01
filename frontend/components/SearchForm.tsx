@@ -65,7 +65,7 @@ function ChipsInput({ label, values, onChange, placeholder, optional }: ChipsInp
 }
 
 export default function SearchForm({ onRun, loading }: Props) {
-  const [keywords, setKeywords] = useState(["ERP", "SAP", "Cloud", "QA", "Data", "AI"]);
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [experience, setExperience] = useState("2-5");
   const [locations, setLocations] = useState(["Bangalore", "Hyderabad"]);
   const [companies, setCompanies] = useState<string[]>([]);
@@ -100,7 +100,7 @@ export default function SearchForm({ onRun, loading }: Props) {
   return (
     <form onSubmit={submit} className="row g-3">
       <div className="col-12">
-        <ChipsInput label="Keywords" values={keywords} onChange={setKeywords} placeholder="ERP, SAP, Cloud, QA, Data, AI" />
+        <ChipsInput label="Keywords" values={keywords} onChange={setKeywords} placeholder="Add keyword and press Enter" />
       </div>
       <div className="col-md-3">
         <label className="form-label text-info">Experience Level</label>
@@ -126,6 +126,7 @@ export default function SearchForm({ onRun, loading }: Props) {
       <div className="col-md-3">
         <label className="form-label text-info">Max Pages to Scrape</label>
         <input type="number" min={1} max={25} className="form-control bg-dark text-light border-info" value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value) || 3)} />
+        <small className="text-secondary">Used to append pageNo in Naukri search links.</small>
       </div>
       <div className="col-md-3">
         <label className="form-label text-info">Seniority Filter</label>
