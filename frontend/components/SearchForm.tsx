@@ -77,11 +77,20 @@ export default function SearchForm({ onRun, loading }: Props) {
   const [removeConsultancies, setRemoveConsultancies] = useState(true);
   const [excludeIrrelevant, setExcludeIrrelevant] = useState(true);
 
-  const canSubmit = useMemo(() => keywords.length > 0 && locations.length > 0, [keywords, locations]);
+  const hasInputValues = useMemo(() => keywords.length > 0 && locations.length > 0, [keywords, locations]);
+  const naukriUrlPreview = useMemo(() => {
+    const primaryKeyword = (keywords[0] || "developer").trim().toLowerCase().replace(/\s+/g, "-");
+    const primaryLocation = (locations[0] || "india").trim().toLowerCase().replace(/\s+/g, "-");
+    return `https://www.naukri.com/${primaryKeyword}-jobs-in-${primaryLocation}`;
+  }, [keywords, locations]);
+  const hasValidNaukriUrlPreview = useMemo(
+    () => /^https:\/\/www\.naukri\.com\/[a-z0-9-]+-jobs-in-[a-z0-9-]+$/i.test(naukriUrlPreview),
+    [naukriUrlPreview]
+  );
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!hasInputValues || !hasValidNaukriUrlPreview) return;
     await onRun({
       keywords,
       experience,
@@ -128,6 +137,17 @@ export default function SearchForm({ onRun, loading }: Props) {
         <input type="number" min={1} max={25} className="form-control bg-dark text-light border-info" value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value) || 3)} />
         <small className="text-secondary">Used to append pageNo in Naukri search links.</small>
       </div>
+      <div className="col-12">
+        <label className="form-label text-info">Generated Naukri URL Preview</label>
+        <input
+          className={`form-control bg-dark text-light ${hasValidNaukriUrlPreview ? "border-success" : "border-danger"}`}
+          value={naukriUrlPreview}
+          readOnly
+        />
+        <small className={hasValidNaukriUrlPreview ? "text-success" : "text-danger"}>
+          {hasValidNaukriUrlPreview ? "Valid Naukri URL format." : "Invalid URL format. Update keywords/location values."}
+        </small>
+      </div>
       <div className="col-md-3">
         <label className="form-label text-info">Seniority Filter</label>
         <select className="form-select bg-dark text-light border-info" multiple value={seniorityFilter} onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (option) => option.value))}>
@@ -157,7 +177,7 @@ export default function SearchForm({ onRun, loading }: Props) {
         </div>
       </div>
       <div className="col-12 d-flex justify-content-end">
-        <button type="submit" className="btn btn-info px-4" disabled={loading || !canSubmit}>
+        <button type="submit" className="btn btn-info px-4" disabled={loading || !hasInputValues || !hasValidNaukriUrlPreview}>
           {loading ? "Running..." : "Run Naukri Agent"}
         </button>
       </div>

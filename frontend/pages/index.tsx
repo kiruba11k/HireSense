@@ -191,6 +191,10 @@ export default function Home() {
       router.push("/naukri");
       return;
     }
+    if (activeView === "interpreter") {
+      router.push("/upload");
+      return;
+    }
   }, [activeView, router, router.query.view]);
 
   useEffect(() => {

@@ -227,6 +227,11 @@ export default function UploadPage() {
 
       <main className="intent-shell">
         <div className="container position-relative" style={{ zIndex: 2 }}>
+          <div className="mb-3">
+            <a href="https://hiresense-frontend-on61.onrender.com/" className="btn btn-outline-light btn-sm">
+              ← Back to Main Dashboard
+            </a>
+          </div>
           <motion.section className="glass-card p-4 p-md-5 mb-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="hero-title">Hiring Intent Interpreter</h1>
             <p className="mb-0 text-light-emphasis">Convert job postings into enterprise buying intent signals using AI.</p>
