@@ -103,8 +103,6 @@ export default function SearchForm({ onRun, loading }: Props) {
     if (normalizedCompanies.length) query.set("company", normalizedCompanies.join(", "));
     if (functionFilter.length) query.set("functionArea", functionFilter.join(", "));
     if (seniorityFilter.length) query.set("seniority", seniorityFilter.join(", "));
-    if (maxPages > 1) query.set("maxPages", String(maxPages));
-
     return `https://www.naukri.com/${keywordPath}-jobs-in-${locationPath}?${query.toString()}`;
   }, [keywords, locations, companies, experience, timeFilter, historicalWindow, functionFilter, seniorityFilter, maxPages]);
   const hasValidNaukriUrlPreview = useMemo(
@@ -170,6 +168,9 @@ export default function SearchForm({ onRun, loading }: Props) {
         />
         <small className={hasValidNaukriUrlPreview ? "text-success" : "text-danger"}>
           {hasValidNaukriUrlPreview ? "Valid Naukri URL format." : "Invalid URL format. Update keywords/location values."}
+        </small>
+        <small className="d-block text-secondary mt-1">
+          Preview includes only broad search params (keyword, location, experience, freshness, company, function, seniority). Advanced Naukri UI filters are not fully encoded in URL query params.
         </small>
       </div>
       <div className="col-md-3">

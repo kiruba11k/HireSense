@@ -100,6 +100,10 @@ const parseCsvContent = (content: string): CsvRow[] => {
 };
 
 export default function UploadPage() {
+  const backToDashboard = () => {
+    window.location.href = "https://hiresense-frontend-on61.onrender.com/";
+  };
+
   const [activeTab, setActiveTab] = useState<"manual" | "csv">("manual");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -228,9 +232,9 @@ export default function UploadPage() {
       <main className="intent-shell">
         <div className="container position-relative" style={{ zIndex: 2 }}>
           <div className="mb-3">
-            <a href="https://hiresense-frontend-on61.onrender.com/" className="btn btn-outline-light btn-sm">
+            <button type="button" onClick={backToDashboard} className="btn btn-outline-light btn-sm">
               ← Back to Main Dashboard
-            </a>
+            </button>
           </div>
           <motion.section className="glass-card p-4 p-md-5 mb-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="hero-title">Hiring Intent Interpreter</h1>

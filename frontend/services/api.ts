@@ -308,32 +308,41 @@ export const analyzeIntentCsv = async (file: File) => {
 };
 
 export const runNaukriAgent = async (payload: NaukriRunPayload, fallbackBase?: string) => {
-  const apiBase = resolveApiBase(fallbackBase);
-  const res = await fetch(`${apiBase}/naukri/run-agent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    let detail: unknown = null;
-    try {
-      const errorPayload = await res.json();
-      detail = errorPayload?.detail ?? null;
-    } catch {
-      detail = await res.text();
-    }
+  const apiBases = getApiBaseCandidates(fallbackBase);
+  let lastError: Error | null = null;
 
-    const message =
-      typeof detail === "string"
-        ? detail
-        : "Naukri agent stopped before completion.";
-    const error = new Error(message) as Error & { rows?: Record<string, unknown>[] };
-    if (Array.isArray(detail)) {
-      error.rows = detail as Record<string, unknown>[];
+  for (const apiBase of apiBases) {
+    try {
+      const res = await fetch(`${apiBase}/naukri/run-agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      persistApiBase(apiBase);
+
+      if (!res.ok) {
+        const parsed = await parseApiResponse(res);
+        const detail = parsed.data && typeof parsed.data === "object" && "detail" in (parsed.data as Record<string, unknown>)
+          ? (parsed.data as { detail: unknown }).detail
+          : parsed.data;
+        const message =
+          typeof detail === "string"
+            ? detail
+            : typeof parsed.data === "string"
+              ? parsed.data
+              : "Naukri run failed before returning results.";
+        const error = new Error(message) as Error & { rows?: Record<string, unknown>[] };
+        if (Array.isArray(detail)) error.rows = detail as Record<string, unknown>[];
+        throw error;
+      }
+
+      return res.json();
+    } catch (error) {
+      lastError = error as Error;
     }
-    throw error;
   }
-  return res.json();
+
+  throw lastError || new Error(`Unable to reach backend. Tried: ${apiBases.join(", ")}`);
 };
 
 export const getNaukriStatus = async (fallbackBase?: string): Promise<NaukriStatusResponse> => {

@@ -33,7 +33,7 @@ export default function NaukriAgent() {
         return;
       }
       setStatus("error");
-      setMessage(error?.message?.includes("blocked") ? "Naukri temporarily blocked scraping" : "Failed to run Naukri agent");
+      setMessage(error?.message?.includes("blocked") ? "Naukri temporarily blocked scraping" : (error?.message || "Naukri run failed"));
     }
   };
 

@@ -1,9 +1,13 @@
 import Head from "next/head";
-import Link from "next/link";
+import { useCallback } from "react";
 
 import NaukriAgent from "../components/NaukriAgent";
 
 export default function NaukriPage() {
+  const goToDashboard = useCallback(() => {
+    window.location.href = "https://hiresense-frontend-on61.onrender.com/";
+  }, []);
+
   return (
     <>
       <Head>
@@ -15,9 +19,9 @@ export default function NaukriPage() {
       </Head>
       <main style={{ minHeight: "100vh", background: "#0F172A" }}>
         <div className="container pt-4">
-          <Link href="/" className="btn btn-outline-light btn-sm">
+          <button type="button" onClick={goToDashboard} className="btn btn-outline-light btn-sm">
             ← Back to Main Dashboard
-          </Link>
+          </button>
         </div>
         <NaukriAgent />
       </main>
