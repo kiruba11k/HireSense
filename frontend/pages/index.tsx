@@ -195,6 +195,10 @@ export default function Home() {
       router.push("/upload");
       return;
     }
+    if (activeView === "tech-stack") {
+      router.push("/tech-stack");
+      return;
+    }
   }, [activeView, router, router.query.view]);
 
   useEffect(() => {
