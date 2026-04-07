@@ -23,7 +23,6 @@ export default function TechStackPage() {
         job_data: jobData.trim(),
       });
       setResult(response);
-      if (response.error) setError(response.error);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to detect tech stack");
     } finally {
@@ -84,7 +83,7 @@ export default function TechStackPage() {
             </div>
           </div>
 
-          {result && !result.error && (
+          {result && (
             <div className="d-grid gap-3">
               <div className="row g-3">
                 {renderList("ERP Stack", result.erp_stack || [])}

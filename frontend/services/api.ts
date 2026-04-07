@@ -292,7 +292,6 @@ export type TechStackResponse = {
   data_stack: string[];
   testing_tools: string[];
   evidence_sources: TechEvidence[];
-  error?: string;
 };
 
 export type TechStackPayload = {

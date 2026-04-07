@@ -44,7 +44,7 @@ class CrawlerAgent:
             for script_tag in soup.find_all("script"):
                 src = script_tag.get("src")
                 if src:
-                    scripts.append(urljoin(url, src))
+                    scripts.append(src)
                 elif script_tag.string:
                     scripts.append(script_tag.string[:500])
 
@@ -195,20 +195,7 @@ class TechStackAgentSystem:
         return detected
 
     def run(self, company_name: str, website: str, job_data: str = "") -> dict[str, Any]:
-        normalized_website = self._normalize_website(website)
-        data = self.crawler.crawl(normalized_website)
-        if data.get("text") == "Error: Could not reach site":
-            return {
-                "company_name": company_name,
-                "erp_stack": [],
-                "crm_stack": [],
-                "cloud_stack": [],
-                "data_stack": [],
-                "testing_tools": [],
-                "evidence_sources": [],
-                "error": f"Could not reach site: {normalized_website}",
-            }
-
+        data = self.crawler.crawl(website)
         fingerprint_hits = self.fingerprint_check(data["scripts"])
         llm_techs = self.extractor.extract_technologies(data["text"] + " " + job_data)
 
@@ -225,15 +212,6 @@ class TechStackAgentSystem:
         result.setdefault("evidence_sources", [])
         result["company_name"] = company_name
         return result
-
-    @staticmethod
-    def _normalize_website(website: str) -> str:
-        token = (website or "").strip()
-        if not token:
-            return token
-        if not token.startswith(("http://", "https://")):
-            return f"https://{token}"
-        return token
 
 
 def _llm_call(prompt: str) -> str:
