@@ -278,6 +278,28 @@ export type IntentAnalyzeResult = {
   reasoning: string;
 };
 
+export type TechEvidence = {
+  tool: string;
+  evidence_sentence: string;
+  source_url: string;
+};
+
+export type TechStackResponse = {
+  company_name: string;
+  erp_stack: string[];
+  crm_stack: string[];
+  cloud_stack: string[];
+  data_stack: string[];
+  testing_tools: string[];
+  evidence_sources: TechEvidence[];
+};
+
+export type TechStackPayload = {
+  company_name: string;
+  company_website: string;
+  job_data?: string;
+};
+
 export const analyzeIntent = async (payload: IntentAnalyzeInput) => {
   const apiBase = resolveApiBase();
   const res = await fetch(`${apiBase}/analyze-intent`, {
@@ -364,4 +386,22 @@ export const downloadNaukriCsv = async (fallbackBase?: string) => {
   const res = await fetch(`${apiBase}/naukri/download`);
   if (!res.ok) throw new Error(await res.text());
   return res.blob();
+};
+
+export const detectTechStack = async (payload: TechStackPayload, fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  const res = await fetch(`${apiBase}/detect-tech-stack`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const parsed = await parseApiResponse(res);
+  if (!res.ok) {
+    const detail =
+      parsed.data && typeof parsed.data === "object" && "detail" in (parsed.data as Record<string, unknown>)
+        ? (parsed.data as { detail: unknown }).detail
+        : parsed.data;
+    throw new Error(typeof detail === "string" ? detail : "Tech stack detection failed");
+  }
+  return parsed.data as TechStackResponse;
 };

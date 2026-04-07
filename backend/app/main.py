@@ -20,10 +20,12 @@ from app.schemas import IntentAnalyzeRequest, LinkedInSearchRequest, Stage2Reque
 from app.routers.naukri_agent import router as naukri_router
 from app.services.linkedin_search_service import LinkedInSearchService
 from app.services.pipeline import run_pipeline
+from app.services.tech_stack_detector import TechStackAgentSystem
 from app.services.websocket_manager import manager
 
 app = FastAPI(title="HireSense Stage-2 Intent Pipeline")
 app.include_router(naukri_router)
+tech_stack_system = TechStackAgentSystem()
 
 app.add_middleware(
     CORSMiddleware,
@@ -193,3 +195,18 @@ async def results(task_id: str):
     db = SessionLocal()
     row = db.query(Result).filter(Result.task_id == task_id).first()
     return row.data if row else {"status": "not_found"}
+
+
+@app.post("/detect-tech-stack")
+async def detect_tech_stack(data: dict):
+    company_name = str(data.get("company_name", "")).strip()
+    company_website = str(data.get("company_website", "")).strip()
+    job_data = str(data.get("job_data", "") or "")
+
+    if not company_name:
+        raise HTTPException(status_code=422, detail="company_name is required")
+    if not company_website:
+        raise HTTPException(status_code=422, detail="company_website is required")
+
+    result = await asyncio.to_thread(tech_stack_system.run, company_name, company_website, job_data)
+    return result
