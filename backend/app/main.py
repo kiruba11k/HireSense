@@ -15,8 +15,9 @@ from app.config import settings
 from app.csv_handler import parse_intent_csv
 from app.db import SessionLocal
 from app.intent_pipeline import analyze_hiring_intent
+from app.llm_client import GroqClientError, groq_call
 from app.models import Result, Task
-from app.schemas import IntentAnalyzeRequest, LinkedInSearchRequest, Stage2Request
+from app.schemas import IntentAnalyzeRequest, LinkedInErpAnalyzeRequest, LinkedInSearchRequest, Stage2Request
 from app.routers.naukri_agent import router as naukri_router
 from app.services.linkedin_search_service import LinkedInSearchService
 from app.services.pipeline import run_pipeline
@@ -158,6 +159,123 @@ async def linkedin_jobs_search_csv(payload: LinkedInSearchRequest):
 
     output.seek(0)
     response_headers = {"Content-Disposition": "attachment; filename=linkedin-jobs.csv"}
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=response_headers)
+
+
+def _extract_job_description_text(job: dict) -> str:
+    description_fields = (
+        "descriptionText",
+        "description",
+        "descriptionHtml",
+        "jobDescription",
+        "summary",
+    )
+    for field in description_fields:
+        value = job.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+async def _classify_erp_job(description: str) -> tuple[str, str]:
+    if not description.strip():
+        return "NO", "No job description was available to evaluate ERP specificity."
+
+    prompt = f"""
+You are an expert ERP job filter.
+
+Task: Analyze the job description and determine if it is a TRUE ERP-SPECIFIC ROLE.
+
+STRICT CRITERIA:
+
+Only say YES if:
+- The role involves ERP as the CORE responsibility (not secondary)
+- Includes one or more of the following:
+  - ERP implementation / rollout / migration
+  - ERP configuration / customization
+  - ERP functional consulting (SAP FICO, MM, SD, SuccessFactors, etc.)
+  - ERP solution architecture / system ownership
+  - ERP transformation programs (core role, not support)
+  - ERP integration across systems
+  - ERP module ownership (Finance, HR, Procurement, Supply Chain)
+
+Say NO if:
+- ERP is only used as a tool (data entry, reporting, tracking, operations)
+- Role is support/operations/PMO/finance/accounting with ERP exposure
+- Role is testing/QA ONLY without ownership or configuration
+- Role is master data / data steward / admin
+- ERP is just mentioned as “experience required/preferred”
+
+Be extremely strict. Reject borderline roles.
+
+Return JSON with this exact schema:
+{{
+  "erp_specific": "YES" or "NO",
+  "reason": "single concise reason"
+}}
+
+Job description:
+\"\"\"{description}\"\"\"
+"""
+    try:
+        result = await groq_call(prompt, temperature=0.0)
+    except GroqClientError as exc:
+        return "NO", f"GROQ_ERROR: {exc}"
+
+    verdict = str(result.get("erp_specific", "NO")).strip().upper()
+    if verdict not in {"YES", "NO"}:
+        verdict = "NO"
+    reason = str(result.get("reason", "")).strip() or "No reason provided by model."
+    return verdict, reason
+
+
+@app.post("/linkedin/jobs/erp-analyzed-csv")
+async def linkedin_jobs_erp_analyzed_csv(payload: LinkedInErpAnalyzeRequest):
+    service = LinkedInSearchService()
+    search_payload = LinkedInSearchRequest(
+        window=payload.window,
+        limit=payload.limit,
+        offset=payload.offset,
+        title_filter=payload.keyword,
+        location_filter=payload.location,
+    )
+
+    try:
+        result = await asyncio.to_thread(service.search, search_payload.to_apify_input())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    if result["status_code"] >= 400:
+        raise HTTPException(status_code=result["status_code"], detail=result["data"])
+
+    jobs = _extract_linkedin_jobs(result.get("data"))
+    semaphore = asyncio.Semaphore(4)
+
+    async def analyze_one(job: dict) -> tuple[str, str]:
+        async with semaphore:
+            description = _extract_job_description_text(job)
+            return await _classify_erp_job(description)
+
+    analyses = await asyncio.gather(*(analyze_one(job) for job in jobs)) if jobs else []
+
+    enriched_jobs: list[dict] = []
+    for job, (verdict, reason) in zip(jobs, analyses):
+        updated = dict(job)
+        updated["erp_specific"] = verdict
+        updated["erp_reason"] = reason
+        enriched_jobs.append(updated)
+
+    headers, rows = _build_dynamic_csv_rows(enriched_jobs)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    if headers:
+        writer.writerow(headers)
+    for row in rows:
+        writer.writerow(row)
+
+    output.seek(0)
+    response_headers = {"Content-Disposition": "attachment; filename=linkedin-jobs-erp-analyzed.csv"}
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8", headers=response_headers)
 
 
