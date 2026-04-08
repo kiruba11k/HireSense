@@ -2,7 +2,7 @@ import { CSSProperties, FormEvent, ReactNode, useEffect, useMemo, useState } fro
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { motion } from "framer-motion";
-import { LinkedInSearchPayload, LinkedInWindow, searchLinkedInJobs } from "../services/api";
+import { exportLinkedInErpAnalyzedCsv, LinkedInSearchPayload, LinkedInWindow, searchLinkedInJobs } from "../services/api";
 
 type JobCard = {
   id: string;
@@ -261,6 +261,10 @@ export default function LinkedinPage() {
   const [trackerMessage, setTrackerMessage] = useState("No scraping task running.");
   const [trackerProgress, setTrackerProgress] = useState(0);
   const [completedAt, setCompletedAt] = useState<string | null>(null);
+  const [erpKeyword, setErpKeyword] = useState("");
+  const [erpLocation, setErpLocation] = useState("");
+  const [erpLoading, setErpLoading] = useState(false);
+  const [erpStatus, setErpStatus] = useState("No ERP analyzer job running.");
 
   const payloadPreview = useMemo<LinkedInSearchPayload>(
     () => ({
@@ -595,7 +599,7 @@ export default function LinkedinPage() {
           </motion.header>
 
           <div style={menuRowStyle}>
-            {["Search Builder", "Saved Filters", "Exports"].map((item) => (
+            {["Search Builder", "ERP Analyzer", "Saved Filters", "Exports"].map((item) => (
               <motion.button key={item} whileHover={{ y: -2 }} type="button" onClick={() => setActiveTab(item)} style={{ ...tabBtnStyle, ...(activeTab === item ? tabBtnActiveStyle : {}) }}>
                 {item}
               </motion.button>
@@ -723,6 +727,75 @@ export default function LinkedinPage() {
                   </div>
                 </div>
               ))}
+            </section>
+          )}
+
+          {activeTab === "ERP Analyzer" && (
+            <section style={panelStyle}>
+              <h3 style={sectionTitle}>ERP Job Description Analyzer (CSV)</h3>
+              <p style={metaStyle}>
+                Runs LinkedIn scraping by keyword + location, then classifies each job description with Groq and appends <code>erp_specific</code> and <code>erp_reason</code> columns.
+              </p>
+              <div style={{ ...gridStyle, marginBottom: 12 }}>
+                <Field label="Keyword">
+                  <input
+                    value={erpKeyword}
+                    onChange={(e) => setErpKeyword(e.target.value)}
+                    placeholder="e.g., SAP FICO"
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Location">
+                  <input
+                    value={erpLocation}
+                    onChange={(e) => setErpLocation(e.target.value)}
+                    placeholder="e.g., United Kingdom"
+                    style={inputStyle}
+                  />
+                </Field>
+              </div>
+              <div style={navActionsStyle}>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  whileHover={{ y: -1 }}
+                  type="button"
+                  style={navBtnStyle}
+                  disabled={erpLoading}
+                  onClick={async () => {
+                    if (!erpKeyword.trim() || !erpLocation.trim()) {
+                      setError("ERP analyzer requires both keyword and location.");
+                      return;
+                    }
+                    setError("");
+                    setErpLoading(true);
+                    setErpStatus("Background task started: scraping LinkedIn jobs and analyzing ERP fit with Groq…");
+                    try {
+                      const blob = await exportLinkedInErpAnalyzedCsv({
+                        keyword: erpKeyword.trim(),
+                        location: erpLocation.trim(),
+                        window: windowFilter,
+                        limit,
+                        offset,
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "linkedin-jobs-erp-analyzed.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      setErpStatus("Complete: analyzed CSV downloaded.");
+                    } catch (err: any) {
+                      setError(err?.message || "ERP analyzed CSV export failed.");
+                      setErpStatus("Failed: review error details and retry.");
+                    } finally {
+                      setErpLoading(false);
+                    }
+                  }}
+                >
+                  {erpLoading ? "Running in background..." : "Run & Download ERP Analyzed CSV"}
+                </motion.button>
+              </div>
+              <p style={{ ...metaStyle, marginTop: 10 }}>{erpStatus}</p>
             </section>
           )}
 
