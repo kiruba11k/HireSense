@@ -218,7 +218,11 @@ Job description:
 \"\"\"{description}\"\"\"
 """
     try:
-        result = await groq_call(prompt, temperature=0.0)
+        result = await groq_call(
+            prompt,
+            model="llama-3.3-70b-versatile",
+            temperature=0.0,
+        )
     except GroqClientError as exc:
         return "NO", f"GROQ_ERROR: {exc}"
 
@@ -232,23 +236,28 @@ Job description:
 @app.post("/linkedin/jobs/erp-analyzed-csv")
 async def linkedin_jobs_erp_analyzed_csv(payload: LinkedInErpAnalyzeRequest):
     service = LinkedInSearchService()
-    search_payload = LinkedInSearchRequest(
-        window=payload.window,
-        limit=payload.limit,
-        offset=payload.offset,
-        title_filter=payload.keyword,
-        location_filter=payload.location,
-    )
+    scraped_jobs: list[dict] = []
+    for page_idx in range(payload.pages_to_scrape):
+        page_offset = payload.offset + (page_idx * payload.limit)
+        search_payload = LinkedInSearchRequest(
+            window=payload.window,
+            limit=payload.limit,
+            offset=page_offset,
+            title_filter=payload.keyword,
+            location_filter=payload.location,
+        )
 
-    try:
-        result = await asyncio.to_thread(service.search, search_payload.to_apify_input())
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        try:
+            result = await asyncio.to_thread(service.search, search_payload.to_apify_input())
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    if result["status_code"] >= 400:
-        raise HTTPException(status_code=result["status_code"], detail=result["data"])
+        if result["status_code"] >= 400:
+            raise HTTPException(status_code=result["status_code"], detail=result["data"])
 
-    jobs = _extract_linkedin_jobs(result.get("data"))
+        scraped_jobs.extend(_extract_linkedin_jobs(result.get("data")))
+
+    jobs = scraped_jobs
     semaphore = asyncio.Semaphore(4)
 
     async def analyze_one(job: dict) -> tuple[str, str]:

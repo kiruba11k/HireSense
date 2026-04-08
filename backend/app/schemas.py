@@ -195,6 +195,7 @@ class LinkedInErpAnalyzeRequest(BaseModel):
     window: LinkedInWindow = LinkedInWindow.last_7d
     limit: int = Field(default=25, ge=10, le=100)
     offset: int = Field(default=0, ge=0)
+    pages_to_scrape: int = Field(default=1, ge=1, le=20)
 
 
 class JobSearchInput(BaseModel):
