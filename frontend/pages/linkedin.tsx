@@ -263,6 +263,7 @@ export default function LinkedinPage() {
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [erpKeyword, setErpKeyword] = useState("");
   const [erpLocation, setErpLocation] = useState("");
+  const [erpPagesToScrape, setErpPagesToScrape] = useState(3);
   const [erpLoading, setErpLoading] = useState(false);
   const [erpStatus, setErpStatus] = useState("No ERP analyzer job running.");
 
@@ -734,7 +735,7 @@ export default function LinkedinPage() {
             <section style={panelStyle}>
               <h3 style={sectionTitle}>ERP Job Description Analyzer (CSV)</h3>
               <p style={metaStyle}>
-                Runs LinkedIn scraping by keyword + location, then classifies each job description with Groq and appends <code>erp_specific</code> and <code>erp_reason</code> columns.
+                Scrapes all requested LinkedIn pages first, then classifies each job description with Groq (Llama 3.3 70B Versatile) and appends <code>erp_specific</code> and <code>erp_reason</code> columns.
               </p>
               <div style={{ ...gridStyle, marginBottom: 12 }}>
                 <Field label="Keyword">
@@ -753,6 +754,17 @@ export default function LinkedinPage() {
                     style={inputStyle}
                   />
                 </Field>
+                <Field label="Pages to Scrape">
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={erpPagesToScrape}
+                    onChange={(e) => setErpPagesToScrape(Math.min(20, Math.max(1, Number(e.target.value) || 1)))}
+                    placeholder="e.g., 3"
+                    style={inputStyle}
+                  />
+                </Field>
               </div>
               <div style={navActionsStyle}>
                 <motion.button
@@ -763,12 +775,12 @@ export default function LinkedinPage() {
                   disabled={erpLoading}
                   onClick={async () => {
                     if (!erpKeyword.trim() || !erpLocation.trim()) {
-                      setError("ERP analyzer requires both keyword and location.");
+                      setError("ERP analyzer requires keyword and location.");
                       return;
                     }
                     setError("");
                     setErpLoading(true);
-                    setErpStatus("Background task started: scraping LinkedIn jobs and analyzing ERP fit with Groq…");
+                    setErpStatus(`Background task started: scraping ${erpPagesToScrape} page(s), then running ERP analysis with Groq…`);
                     try {
                       const blob = await exportLinkedInErpAnalyzedCsv({
                         keyword: erpKeyword.trim(),
@@ -776,6 +788,7 @@ export default function LinkedinPage() {
                         window: windowFilter,
                         limit,
                         offset,
+                        pages_to_scrape: erpPagesToScrape,
                       });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
