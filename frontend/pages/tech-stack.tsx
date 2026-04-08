@@ -1,9 +1,13 @@
 import Head from "next/head";
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/router";
 
 import { detectTechStack, TechStackResponse } from "../services/api";
 
+const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
+
 export default function TechStackPage() {
+  const router = useRouter();
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
   const [jobData, setJobData] = useState("");
@@ -49,6 +53,19 @@ export default function TechStackPage() {
     </div>
   );
 
+  const backToDashboard = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const persisted = window.sessionStorage.getItem(DASHBOARD_STATE_KEY);
+        const parsed = persisted ? JSON.parse(persisted) : {};
+        window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ ...parsed, activeView: "overview" }));
+      } catch {
+        window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ activeView: "overview" }));
+      }
+    }
+    router.push("/");
+  };
+
   return (
     <>
       <Head>
@@ -57,17 +74,17 @@ export default function TechStackPage() {
       </Head>
       <main style={{ minHeight: "100vh", background: "#F4F3EE" }}>
         <div className="container py-4" style={{ color: "#3D322D" }}>
-          <a href="/" className="btn btn-sm mb-3" style={{ borderColor: "#C15F3C", color: "#A14A2F" }}>← Back to Main Dashboard</a>
+          <button type="button" onClick={backToDashboard} className="btn btn-sm mb-3" style={{ borderColor: "#C15F3C", color: "#A14A2F" }}>← Back to Main Dashboard</button>
 
           <div className="card mb-4" style={{ background: "#FAF9F5", borderColor: "#D8D2C6" }}>
             <div className="card-body">
               <h3 className="mb-3">Tech Stack Detector</h3>
               <form onSubmit={onSubmit} className="row g-3">
-                <div className="col-md-6">
+                <div className="col-12 col-md-6">
                   <label className="form-label">Company Name</label>
                   <input className="form-control" style={{ background: "#fff", borderColor: "#D8D2C6", color: "#3D322D" }} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
                 </div>
-                <div className="col-md-6">
+                <div className="col-12 col-md-6">
                   <label className="form-label">Company Website</label>
                   <input className="form-control" style={{ background: "#fff", borderColor: "#D8D2C6", color: "#3D322D" }} value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} placeholder="https://example.com" required />
                 </div>

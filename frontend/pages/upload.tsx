@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Script from "next/script";
+import { useRouter } from "next/router";
 import { motion } from "framer-motion";
 import { IntentAnalyzeInput, IntentAnalyzeResult } from "../services/api";
 
@@ -18,6 +19,7 @@ declare global {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const DASHBOARD_STATE_KEY = "hiresense.dashboard.state";
 
 const emptyForm: IntentAnalyzeInput = {
   company_name: "",
@@ -100,8 +102,19 @@ const parseCsvContent = (content: string): CsvRow[] => {
 };
 
 export default function UploadPage() {
+  const router = useRouter();
+
   const backToDashboard = () => {
-    window.location.href = "https://hiresense-frontend-on61.onrender.com/";
+    if (typeof window !== "undefined") {
+      try {
+        const persisted = window.sessionStorage.getItem(DASHBOARD_STATE_KEY);
+        const parsed = persisted ? JSON.parse(persisted) : {};
+        window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ ...parsed, activeView: "overview" }));
+      } catch {
+        window.sessionStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify({ activeView: "overview" }));
+      }
+    }
+    router.push("/");
   };
 
   const [activeTab, setActiveTab] = useState<"manual" | "csv">("manual");
