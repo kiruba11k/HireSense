@@ -214,11 +214,11 @@ Return JSON with this exact schema:
   "reason": "single concise reason"
 }}
 
-    Job description:
+Job description:
 \"\"\"{description}\"\"\"
 """
     try:
-        result = await groq_call(prompt, temperature=0.0, model="llama-3.3-70b-versatile")
+        result = await groq_call(prompt, temperature=0.0)
     except GroqClientError as exc:
         return "NO", f"GROQ_ERROR: {exc}"
 
@@ -232,31 +232,23 @@ Return JSON with this exact schema:
 @app.post("/linkedin/jobs/erp-analyzed-csv")
 async def linkedin_jobs_erp_analyzed_csv(payload: LinkedInErpAnalyzeRequest):
     service = LinkedInSearchService()
-    all_jobs: list[dict] = []
-    for page_index in range(payload.pages_to_scrape):
-        page_offset = payload.offset + (page_index * payload.limit)
-        search_payload = LinkedInSearchRequest(
-            window=payload.window,
-            limit=payload.limit,
-            offset=page_offset,
-            title_filter=payload.keyword,
-            location_filter=payload.location,
-        )
+    search_payload = LinkedInSearchRequest(
+        window=payload.window,
+        limit=payload.limit,
+        offset=payload.offset,
+        title_filter=payload.keyword,
+        location_filter=payload.location,
+    )
 
-        try:
-            result = await asyncio.to_thread(service.search, search_payload.to_apify_input())
-        except RuntimeError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
+    try:
+        result = await asyncio.to_thread(service.search, search_payload.to_apify_input())
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        if result["status_code"] >= 400:
-            raise HTTPException(status_code=result["status_code"], detail=result["data"])
+    if result["status_code"] >= 400:
+        raise HTTPException(status_code=result["status_code"], detail=result["data"])
 
-        page_jobs = _extract_linkedin_jobs(result.get("data"))
-        if not page_jobs:
-            break
-        all_jobs.extend(page_jobs)
-
-    jobs = all_jobs
+    jobs = _extract_linkedin_jobs(result.get("data"))
     semaphore = asyncio.Semaphore(4)
 
     async def analyze_one(job: dict) -> tuple[str, str]:
@@ -266,35 +258,20 @@ async def linkedin_jobs_erp_analyzed_csv(payload: LinkedInErpAnalyzeRequest):
 
     analyses = await asyncio.gather(*(analyze_one(job) for job in jobs)) if jobs else []
 
-    output_headers = [
-        "title",
-        "company",
-        "location",
-        "publication_date",
-        "url",
-        "description",
-        "llm_output",
-        "reason",
-    ]
-    output_rows: list[list[str]] = []
+    enriched_jobs: list[dict] = []
     for job, (verdict, reason) in zip(jobs, analyses):
-        title = str(job.get("title") or "").strip()
-        company = str(job.get("companyName") or job.get("organization") or job.get("company") or "").strip()
-        location = str(
-            job.get("location")
-            or (job.get("locations_derived") or [""])[0]
-            or (job.get("countries_derived") or [""])[0]
-            or ""
-        ).strip()
-        publication_date = str(job.get("publication_date") or job.get("postedAt") or job.get("date_posted") or job.get("date_created") or "").strip()
-        url = str(job.get("url") or job.get("link") or "").strip()
-        description = _extract_job_description_text(job)
-        output_rows.append([title, company, location, publication_date, url, description, verdict, reason])
+        updated = dict(job)
+        updated["erp_specific"] = verdict
+        updated["erp_reason"] = reason
+        enriched_jobs.append(updated)
+
+    headers, rows = _build_dynamic_csv_rows(enriched_jobs)
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(output_headers)
-    for row in output_rows:
+    if headers:
+        writer.writerow(headers)
+    for row in rows:
         writer.writerow(row)
 
     output.seek(0)

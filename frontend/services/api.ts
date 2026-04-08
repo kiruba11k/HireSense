@@ -109,7 +109,8 @@ export type LinkedInErpAnalyzePayload = {
   keyword: string;
   location: string;
   window?: LinkedInWindow;
-  pages_to_scrape: number;
+  limit?: number;
+  offset?: number;
 };
 
 export type JobSearchPayload = {

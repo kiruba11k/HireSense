@@ -263,10 +263,8 @@ export default function LinkedinPage() {
   const [completedAt, setCompletedAt] = useState<string | null>(null);
   const [erpKeyword, setErpKeyword] = useState("");
   const [erpLocation, setErpLocation] = useState("");
-  const [erpPagesToScrape, setErpPagesToScrape] = useState(2);
   const [erpLoading, setErpLoading] = useState(false);
   const [erpStatus, setErpStatus] = useState("No ERP analyzer job running.");
-  const [erpCsvBlob, setErpCsvBlob] = useState<Blob | null>(null);
 
   const payloadPreview = useMemo<LinkedInSearchPayload>(
     () => ({
@@ -736,7 +734,7 @@ export default function LinkedinPage() {
             <section style={panelStyle}>
               <h3 style={sectionTitle}>ERP Job Description Analyzer (CSV)</h3>
               <p style={metaStyle}>
-                Runs LinkedIn scraping by keyword + location, then classifies each job description with Groq and appends <code>llm_output</code> and <code>reason</code> columns.
+                Runs LinkedIn scraping by keyword + location, then classifies each job description with Groq and appends <code>erp_specific</code> and <code>erp_reason</code> columns.
               </p>
               <div style={{ ...gridStyle, marginBottom: 12 }}>
                 <Field label="Keyword">
@@ -755,16 +753,6 @@ export default function LinkedinPage() {
                     style={inputStyle}
                   />
                 </Field>
-                <Field label="Pages to scrape">
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={erpPagesToScrape}
-                    onChange={(e) => setErpPagesToScrape(Math.min(20, Math.max(1, Number(e.target.value || 1))))}
-                    style={inputStyle}
-                  />
-                </Field>
               </div>
               <div style={navActionsStyle}>
                 <motion.button
@@ -779,18 +767,23 @@ export default function LinkedinPage() {
                       return;
                     }
                     setError("");
-                    setErpCsvBlob(null);
                     setErpLoading(true);
-                    setErpStatus("Background task started: scraping all pages first, then running Groq analysis…");
+                    setErpStatus("Background task started: scraping LinkedIn jobs and analyzing ERP fit with Groq…");
                     try {
                       const blob = await exportLinkedInErpAnalyzedCsv({
                         keyword: erpKeyword.trim(),
                         location: erpLocation.trim(),
                         window: windowFilter,
-                        pages_to_scrape: erpPagesToScrape,
+                        limit,
+                        offset,
                       });
-                      setErpCsvBlob(blob);
-                      setErpStatus("Complete: final analyzed CSV is ready to download.");
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "linkedin-jobs-erp-analyzed.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      setErpStatus("Complete: analyzed CSV downloaded.");
                     } catch (err: any) {
                       setError(err?.message || "ERP analyzed CSV export failed.");
                       setErpStatus("Failed: review error details and retry.");
@@ -799,25 +792,7 @@ export default function LinkedinPage() {
                     }
                   }}
                 >
-                  {erpLoading ? "Running in background..." : "Run ERP Scrape + Analyze"}
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ y: -1 }}
-                  type="button"
-                  style={{ ...navBtnStyle, opacity: erpCsvBlob ? 1 : 0.5, cursor: erpCsvBlob ? "pointer" : "not-allowed" }}
-                  disabled={!erpCsvBlob}
-                  onClick={() => {
-                    if (!erpCsvBlob) return;
-                    const url = URL.createObjectURL(erpCsvBlob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "linkedin-jobs-erp-analyzed.csv";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Download Final CSV
+                  {erpLoading ? "Running in background..." : "Run & Download ERP Analyzed CSV"}
                 </motion.button>
               </div>
               <p style={{ ...metaStyle, marginTop: 10 }}>{erpStatus}</p>
