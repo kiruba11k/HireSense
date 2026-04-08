@@ -32,7 +32,7 @@ export default function TechStackPage() {
 
   const renderList = (title: string, values: string[]) => (
     <div className="col-md-6" key={title}>
-      <div className="card bg-dark text-light border-info h-100">
+      <div className="card h-100" style={{ background: "#FAF9F5", borderColor: "#D8D2C6", color: "#3D322D" }}>
         <div className="card-header fw-semibold">{title}</div>
         <div className="card-body">
           {values.length ? (
@@ -55,28 +55,28 @@ export default function TechStackPage() {
         <title>HireSense • Tech Stack Detector</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
       </Head>
-      <main style={{ minHeight: "100vh", background: "#0F172A" }}>
-        <div className="container py-4 text-light">
-          <a href="/" className="btn btn-outline-light btn-sm mb-3">← Back to Main Dashboard</a>
+      <main style={{ minHeight: "100vh", background: "#F4F3EE" }}>
+        <div className="container py-4" style={{ color: "#3D322D" }}>
+          <a href="/" className="btn btn-sm mb-3" style={{ borderColor: "#C15F3C", color: "#A14A2F" }}>← Back to Main Dashboard</a>
 
-          <div className="card bg-dark text-light border-info mb-4">
+          <div className="card mb-4" style={{ background: "#FAF9F5", borderColor: "#D8D2C6" }}>
             <div className="card-body">
               <h3 className="mb-3">Tech Stack Detector</h3>
               <form onSubmit={onSubmit} className="row g-3">
                 <div className="col-md-6">
                   <label className="form-label">Company Name</label>
-                  <input className="form-control bg-dark text-light border-info" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+                  <input className="form-control" style={{ background: "#fff", borderColor: "#D8D2C6", color: "#3D322D" }} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
                 </div>
                 <div className="col-md-6">
                   <label className="form-label">Company Website</label>
-                  <input className="form-control bg-dark text-light border-info" value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} placeholder="https://example.com" required />
+                  <input className="form-control" style={{ background: "#fff", borderColor: "#D8D2C6", color: "#3D322D" }} value={companyWebsite} onChange={(e) => setCompanyWebsite(e.target.value)} placeholder="https://example.com" required />
                 </div>
                 <div className="col-12">
                   <label className="form-label">Job Data (Optional)</label>
-                  <textarea className="form-control bg-dark text-light border-info" rows={4} value={jobData} onChange={(e) => setJobData(e.target.value)} />
+                  <textarea className="form-control" style={{ background: "#fff", borderColor: "#D8D2C6", color: "#3D322D" }} rows={4} value={jobData} onChange={(e) => setJobData(e.target.value)} />
                 </div>
                 <div className="col-12 d-flex justify-content-end">
-                  <button type="submit" className="btn btn-info" disabled={loading}>{loading ? "Detecting..." : "Detect Tech Stack"}</button>
+                  <button type="submit" className="btn" style={{ background: "#C15F3C", color: "#fff" }} disabled={loading}>{loading ? "Detecting..." : "Detect Tech Stack"}</button>
                 </div>
               </form>
               {error && <div className="alert alert-danger mt-3 mb-0">{error}</div>}
@@ -93,10 +93,10 @@ export default function TechStackPage() {
                 {renderList("Testing Tools", result.testing_tools || [])}
               </div>
 
-              <div className="card bg-dark text-light border-info">
+              <div className="card" style={{ background: "#FAF9F5", borderColor: "#D8D2C6" }}>
                 <div className="card-header fw-semibold">Evidence Sources</div>
                 <div className="table-responsive">
-                  <table className="table table-dark table-striped mb-0">
+                  <table className="table mb-0">
                     <thead>
                       <tr>
                         <th>Tool</th>

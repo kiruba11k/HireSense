@@ -30,10 +30,10 @@ export default function TopNavbar({ theme, setTheme, onMenuToggle }: Props) {
           <i className={`fa-solid ${theme === "dark" ? "fa-sun" : "fa-moon"}`} />
         </button>
         <button className="profile-btn">
-          <div className="avatar">AR</div>
+          <div className="avatar">HS</div>
           <div>
-            <strong>Alex Rao</strong>
-            <small>Architect</small>
+            <strong>Team Workspace</strong>
+            <small>Signed in</small>
           </div>
           <i className="fa-solid fa-chevron-down" />
         </button>
