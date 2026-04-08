@@ -63,6 +63,56 @@ export default function Home() {
     () => AGENT_CONFIG.map((a) => ({ ...a, status: agentState[a.id] || "Idle" })),
     [agentState]
   );
+  const runningAgentsCount = useMemo(
+    () => Object.values(agentState).filter((status) => status === "Running").length,
+    [agentState]
+  );
+  const completedAgentsCount = useMemo(
+    () => Object.values(agentState).filter((status) => status === "Completed").length,
+    [agentState]
+  );
+  const highIntentLeads = useMemo(
+    () => logs.filter((line) => /aggregated score ready|signal recalculated/i.test(line)).length,
+    [logs]
+  );
+  const totalCompaniesAnalyzed = useMemo(() => {
+    const uniqueCompanies = new Set(
+      logs.map((line) => line.match(/for (.+)$/)?.[1]?.trim()).filter(Boolean)
+    );
+    if (company.trim()) uniqueCompanies.add(company.trim());
+    return uniqueCompanies.size;
+  }, [logs, company]);
+  const trendData = useMemo(() => {
+    const values = logs
+      .slice(0, 7)
+      .map((_, index) => {
+        const base = 45 + index * 4;
+        const runningBoost = runningAgentsCount * 3;
+        const completedBoost = completedAgentsCount * 2;
+        return Math.min(100, base + runningBoost + completedBoost);
+      })
+      .reverse();
+    return values.length ? values : [40, 42, 45, 48, 52, 55, 58];
+  }, [logs, runningAgentsCount, completedAgentsCount]);
+  const signalDistribution = useMemo(() => {
+    const total = Math.max(1, runningAgentsCount + completedAgentsCount + 2);
+    const hiring = Math.round((runningAgentsCount / total) * 100);
+    const tech = Math.round((completedAgentsCount / total) * 100);
+    const news = Math.round((logs.length / 10) * 100);
+    const filings = Math.max(5, Math.round((jobFunctionFilter.length / 10) * 100));
+    const tenders = Math.max(5, 100 - (hiring + tech + news + filings));
+    return [
+      { label: "Hiring", score: Math.max(5, hiring) },
+      { label: "News", score: Math.max(5, news) },
+      { label: "Tech", score: Math.max(5, tech) },
+      { label: "Filings", score: filings },
+      { label: "Tenders", score: tenders },
+    ];
+  }, [runningAgentsCount, completedAgentsCount, logs.length, jobFunctionFilter.length]);
+  const aggregatorScore = useMemo(
+    () => Math.min(100, Math.max(0, Math.round(signalDistribution.reduce((acc, item) => acc + item.score, 0) / signalDistribution.length))),
+    [signalDistribution]
+  );
 
 
   useEffect(() => {
@@ -145,7 +195,7 @@ export default function Home() {
       type: "line",
       data: {
         labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        datasets: [{ label: "Intent Score", data: [42, 48, 51, 64, 59, 71, 78], borderColor: "#5eead4", tension: 0.35 }],
+        datasets: [{ label: "Intent Score", data: trendData, borderColor: "#5eead4", tension: 0.35 }],
       },
       options: { plugins: { legend: { display: false } } },
     });
@@ -153,8 +203,8 @@ export default function Home() {
     const distribution = new window.Chart(distributionRef.current, {
       type: "bar",
       data: {
-        labels: ["Hiring", "News", "Tech", "Filings", "Tenders"],
-        datasets: [{ data: [30, 20, 15, 15, 20], backgroundColor: ["#7c3aed", "#06b6d4", "#22c55e", "#f97316", "#eab308"] }],
+        labels: signalDistribution.map((item) => item.label),
+        datasets: [{ data: signalDistribution.map((item) => item.score), backgroundColor: ["#7c3aed", "#06b6d4", "#22c55e", "#f97316", "#eab308"] }],
       },
       options: { plugins: { legend: { display: false } } },
     });
@@ -162,8 +212,8 @@ export default function Home() {
     const donut = new window.Chart(donutRef.current, {
       type: "doughnut",
       data: {
-        labels: ["Hiring", "News", "Tech", "Filings", "Tenders"],
-        datasets: [{ data: [30, 20, 15, 15, 20], borderWidth: 0 }],
+        labels: signalDistribution.map((item) => item.label),
+        datasets: [{ data: signalDistribution.map((item) => item.score), borderWidth: 0 }],
       },
       options: { cutout: "74%", plugins: { legend: { labels: { color: "#94a3b8" } } } },
     });
@@ -173,7 +223,7 @@ export default function Home() {
       distribution.destroy();
       donut.destroy();
     };
-  }, [activeView]);
+  }, [activeView, signalDistribution, trendData]);
 
   useEffect(() => {
     const forcedView = router.query.view;
@@ -255,6 +305,7 @@ export default function Home() {
   };
 
   const selectedAgent = agentsWithStatus.find((a) => a.id === activeView);
+  const selectedAgentProgress = selectedAgent?.status === "Completed" ? 100 : selectedAgent?.status === "Running" ? 68 : 18;
 
   return (
     <>
@@ -294,9 +345,9 @@ export default function Home() {
             <>
               <div className="row g-3 mb-3">
                 {[
-                  ["Total Companies Analyzed", "—", "fa-building"],
-                  ["High Intent Leads", "—", "fa-fire"],
-                  ["Active Agents Running", `${Object.values(agentState).filter((s) => s === "Running").length}/9`, "fa-robot"],
+                  ["Total Companies Analyzed", `${totalCompaniesAnalyzed}`, "fa-building"],
+                  ["High Intent Leads", `${highIntentLeads}`, "fa-fire"],
+                  ["Active Agents Running", `${runningAgentsCount}/${AGENT_CONFIG.length}`, "fa-robot"],
                   ["Recent Signals", `${logs.length}`, "fa-signal"],
                 ].map(([title, value, icon]) => (
                   <div className="col-md-6 col-xl-3" key={title}>
@@ -322,7 +373,7 @@ export default function Home() {
               <div className="col-xl-5">
                 <div className="glass-panel aggregator-score">
                   <h3>Intent Aggregator Score</h3>
-                  <div className="score-ring">82</div>
+                  <div className="score-ring">{aggregatorScore}</div>
                   <canvas ref={donutRef} />
                 </div>
               </div>
@@ -334,15 +385,9 @@ export default function Home() {
                     <li>Increase confidence only when filings and procurement trend agree.</li>
                     <li>Assign deep research agent for unclear signals between 55–70 score.</li>
                   </ul>
-                  {[
-                    ["Hiring", 30],
-                    ["News", 20],
-                    ["Tech", 15],
-                    ["Filings", 15],
-                    ["Tenders", 20],
-                  ].map(([label, score]) => (
-                    <div key={label as string} className="mb-2">
-                      <div className="d-flex justify-content-between"><small>{label as string}</small><small>{score as number}%</small></div>
+                  {signalDistribution.map(({ label, score }) => (
+                    <div key={label} className="mb-2">
+                      <div className="d-flex justify-content-between"><small>{label}</small><small>{score}%</small></div>
                       <div className="progress soft-progress"><div className="progress-bar" style={{ width: `${score}%` }} /></div>
                     </div>
                   ))}
@@ -370,8 +415,12 @@ export default function Home() {
                   <h5>Input Panel</h5>
                   {selectedAgent.fields.map((field) => (
                     <div className="form-floating mb-2" key={field}>
-                      <input className="form-control neon-input" id={field} placeholder={field} />
-                      <label htmlFor={field}>{field}</label>
+                      <input
+                        className="form-control neon-input"
+                        id={`${selectedAgent.id}-${field.toLowerCase().replace(/\s+/g, "-")}`}
+                        placeholder={field}
+                      />
+                      <label htmlFor={`${selectedAgent.id}-${field.toLowerCase().replace(/\s+/g, "-")}`}>{field}</label>
                     </div>
                   ))}
                   <div className="mt-3">
@@ -383,11 +432,11 @@ export default function Home() {
                 <div className="col-lg-4">
                   <h5>Process State</h5>
                   <div className="stepper">
-                    <span className="active">1. Scraping</span>
-                    <span className="active">2. Processing</span>
-                    <span>3. Output</span>
+                    <span className={selectedAgent.status !== "Idle" ? "active" : ""}>1. Scraping</span>
+                    <span className={selectedAgent.status === "Running" || selectedAgent.status === "Completed" ? "active" : ""}>2. Processing</span>
+                    <span className={selectedAgent.status === "Completed" ? "active" : ""}>3. Output</span>
                   </div>
-                  <div className="progress mt-3 soft-progress"><div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: "68%" }} /></div>
+                  <div className="progress mt-3 soft-progress"><div className="progress-bar progress-bar-striped progress-bar-animated" style={{ width: `${selectedAgentProgress}%` }} /></div>
                 </div>
                 <div className="col-lg-4">
                   <h5>Output Panel</h5>
