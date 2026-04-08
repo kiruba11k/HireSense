@@ -41,16 +41,16 @@ function ChipsInput({ label, values, onChange, placeholder, optional }: ChipsInp
 
   return (
     <div>
-      <label className="form-label text-info">{label}{optional ? " (optional)" : ""}</label>
-      <div className="form-control bg-dark text-light border-info d-flex flex-wrap gap-2" style={{ minHeight: 44 }}>
+      <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>{label}{optional ? " (optional)" : ""}</label>
+      <div className="form-control d-flex flex-wrap gap-2" style={{ minHeight: 44, background: "var(--surface-color, #faf9f5)", borderColor: "var(--border-color, #d8d2c6)" }}>
         {values.map((value) => (
-          <span key={value} className="badge bg-info text-dark d-inline-flex align-items-center gap-1">
+          <span key={value} className="badge d-inline-flex align-items-center gap-1" style={{ background: "#c4a584", color: "#2f2824" }}>
             {value}
             <button type="button" className="btn btn-sm p-0 border-0" onClick={() => onChange(values.filter((item) => item !== value))}>×</button>
           </span>
         ))}
         <input
-          className="bg-transparent border-0 text-light flex-grow-1"
+          className="bg-transparent border-0 flex-grow-1"
           style={{ minWidth: 180, outline: "none" }}
           value={draft}
           placeholder={placeholder}
@@ -59,7 +59,7 @@ function ChipsInput({ label, values, onChange, placeholder, optional }: ChipsInp
           onBlur={() => addChip(draft)}
         />
       </div>
-      <small className="text-secondary">Press Enter to add each value.</small>
+      <small style={{ color: "#7a6f67" }}>Press Enter to add each value.</small>
     </div>
   );
 }
@@ -134,8 +134,8 @@ export default function SearchForm({ onRun, loading }: Props) {
         <ChipsInput label="Keywords" values={keywords} onChange={setKeywords} placeholder="Add keyword and press Enter" />
       </div>
       <div className="col-md-3">
-        <label className="form-label text-info">Experience Level</label>
-        <select className="form-select bg-dark text-light border-info" value={experience} onChange={(e) => setExperience(e.target.value)}>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Experience Level</label>
+        <select className="form-select" style={{ background: "var(--surface-color, #faf9f5)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }} value={experience} onChange={(e) => setExperience(e.target.value)}>
           <option value="0-2">0-2 years</option>
           <option value="2-5">2-5 years</option>
           <option value="5-10">5-10 years</option>
@@ -143,26 +143,27 @@ export default function SearchForm({ onRun, loading }: Props) {
         </select>
       </div>
       <div className="col-md-3">
-        <label className="form-label text-info">Time Filter</label>
-        <select className="form-select bg-dark text-light border-info" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value as "24h" | "7d" | "30d") }>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Time Filter</label>
+        <select className="form-select" style={{ background: "var(--surface-color, #faf9f5)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }} value={timeFilter} onChange={(e) => setTimeFilter(e.target.value as "24h" | "7d" | "30d") }>
           <option value="24h">24 hours</option>
           <option value="7d">7 days</option>
           <option value="30d">30 days</option>
         </select>
       </div>
       <div className="col-md-3">
-        <label className="form-label text-info">Historical Window (days)</label>
-        <input type="number" min={1} max={180} className="form-control bg-dark text-light border-info" value={historicalWindow} onChange={(e) => setHistoricalWindow(Number(e.target.value) || 30)} />
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Historical Window (days)</label>
+        <input type="number" min={1} max={180} className="form-control" style={{ background: "var(--surface-color, #faf9f5)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }} value={historicalWindow} onChange={(e) => setHistoricalWindow(Number(e.target.value) || 30)} />
       </div>
       <div className="col-md-3">
-        <label className="form-label text-info">Max Pages to Scrape</label>
-        <input type="number" min={1} max={25} className="form-control bg-dark text-light border-info" value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value) || 3)} />
-        <small className="text-secondary">Used to append pageNo in Naukri search links.</small>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Max Pages to Scrape</label>
+        <input type="number" min={1} max={25} className="form-control" style={{ background: "var(--surface-color, #faf9f5)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }} value={maxPages} onChange={(e) => setMaxPages(Number(e.target.value) || 3)} />
+        <small style={{ color: "#7a6f67" }}>Used to append pageNo in Naukri search links.</small>
       </div>
       <div className="col-12">
-        <label className="form-label text-info">Generated Naukri URL Preview</label>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Generated Naukri URL Preview</label>
         <input
-          className={`form-control bg-dark text-light ${hasValidNaukriUrlPreview ? "border-success" : "border-danger"}`}
+          className={`form-control ${hasValidNaukriUrlPreview ? "border-success" : "border-danger"}`}
+          style={{ background: "var(--surface-color, #faf9f5)", color: "var(--text-color, #3d322d)" }}
           value={naukriUrlPreview}
           readOnly
         />
@@ -174,17 +175,17 @@ export default function SearchForm({ onRun, loading }: Props) {
         </small>
       </div>
       <div className="col-md-3">
-        <label className="form-label text-info">Seniority Filter</label>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Seniority Filter</label>
         <select
-          className="form-select text-light border-info"
-          style={{ background: "linear-gradient(145deg, rgba(56,189,248,.25), rgba(14,116,144,.3)), #0b1220", boxShadow: "0 0 0 1px rgba(125,211,252,.2) inset" }}
+          className="form-select"
+          style={{ background: "var(--surface-soft, #f4f3ee)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }}
           multiple
           value={seniorityFilter}
           onChange={(e) => setSeniorityFilter(Array.from(e.target.selectedOptions, (option) => option.value))}
         >
           {seniorityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
-        <small className="text-info-emphasis">Use Ctrl/Cmd + click to select multiple levels.</small>
+        <small style={{ color: "#7a6f67" }}>Use Ctrl/Cmd + click to select multiple levels.</small>
       </div>
       <div className="col-12">
         <ChipsInput label="Locations" values={locations} onChange={setLocations} placeholder="Add city and press Enter" />
@@ -193,17 +194,17 @@ export default function SearchForm({ onRun, loading }: Props) {
         <ChipsInput label="Company List" optional values={companies} onChange={setCompanies} placeholder="Optional: add companies" />
       </div>
       <div className="col-md-6">
-        <label className="form-label text-info">Function Filter</label>
+        <label className="form-label" style={{ color: "var(--brand-primary, #c15f3c)" }}>Function Filter</label>
         <select
-          className="form-select text-light border-info"
-          style={{ background: "linear-gradient(145deg, rgba(34,197,94,.25), rgba(20,83,45,.3)), #0b1220", boxShadow: "0 0 0 1px rgba(74,222,128,.2) inset" }}
+          className="form-select"
+          style={{ background: "var(--surface-soft, #f4f3ee)", borderColor: "var(--border-color, #d8d2c6)", color: "var(--text-color, #3d322d)" }}
           multiple
           value={functionFilter}
           onChange={(e) => setFunctionFilter(Array.from(e.target.selectedOptions, (option) => option.value))}
         >
           {functionOptions.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
-        <small className="text-success">Multi-select enabled for broader matching.</small>
+        <small style={{ color: "#7a6f67" }}>Multi-select enabled for broader matching.</small>
       </div>
       <div className="col-md-6 d-flex align-items-end gap-4">
         <div className="form-check">
@@ -216,7 +217,7 @@ export default function SearchForm({ onRun, loading }: Props) {
         </div>
       </div>
       <div className="col-12 d-flex justify-content-end">
-        <button type="submit" className="btn btn-info px-4" disabled={loading || !hasInputValues || !hasValidNaukriUrlPreview}>
+        <button type="submit" className="btn px-4" style={{ background: "#c15f3c", color: "#fff" }} disabled={loading || !hasInputValues || !hasValidNaukriUrlPreview}>
           {loading ? "Running..." : "Run Naukri Agent"}
         </button>
       </div>

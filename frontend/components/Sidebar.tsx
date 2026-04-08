@@ -15,21 +15,20 @@ export default function Sidebar({ setTab }) {
         .sidebar {
           width: min(280px, 100%);
           padding: 20px;
-          background: rgba(4, 4, 8, 0.72);
-          border-right: 1px solid rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(8px);
+          background: #faf9f5;
+          border-right: 1px solid #d8d2c6;
           z-index: 1;
         }
         h1 {
-          color: #c4b5fd;
+          color: #c15f3c;
           margin: 8px 0 16px;
         }
         button {
           width: 100%;
           text-align: left;
-          background: rgba(109, 77, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          color: white;
+          background: #f4f3ee;
+          border: 1px solid #d8d2c6;
+          color: #3d322d;
           border-radius: 10px;
           padding: 10px;
           margin-bottom: 8px;
@@ -38,7 +37,7 @@ export default function Sidebar({ setTab }) {
         }
         button:hover {
           transform: translateX(4px);
-          background: rgba(109, 77, 255, 0.28);
+          background: #ede5d7;
         }
       `}</style>
     </div>

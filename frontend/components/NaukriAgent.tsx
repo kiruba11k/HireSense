@@ -63,9 +63,9 @@ export default function NaukriAgent() {
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       className="container py-4"
-      style={{ color: "#e2e8f0" }}
+      style={{ color: "var(--text-color, #3d322d)" }}
     >
-      <div className="rounded-4 p-4" style={{ background: "linear-gradient(130deg, rgba(108,99,255,.25), rgba(0,229,255,.15)), #0F172A", border: "1px solid rgba(0,229,255,.3)", backdropFilter: "blur(14px)", transformStyle: "preserve-3d" }}>
+      <div className="rounded-4 p-4" style={{ background: "var(--surface-color, #faf9f5)", border: "1px solid var(--border-color, #d8d2c6)" }}>
         <h3 className="mb-3">Naukri Job Scraper</h3>
         <SearchForm onRun={run} loading={status === "running"} />
         <div className="mt-3">

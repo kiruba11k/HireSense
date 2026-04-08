@@ -674,7 +674,7 @@ export default function LinkedinPage() {
 
               <motion.section style={panelStyle} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h3 style={sectionTitle}>Preview LinkedIn URL (manual use only)</h3>
-                <p style={{ margin: "0 0 10px", color: "#93c5fd", fontSize: "0.9rem" }}>
+                <p style={{ margin: "0 0 10px", color: "#A14A2F", fontSize: "0.9rem" }}>
                   This URL is display-only for manual review.
                 </p>
                 <code style={queryStyle}>{queryUrl}</code>
@@ -773,7 +773,7 @@ export default function LinkedinPage() {
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
     <motion.article style={kpiCardStyle} whileHover={{ y: -5 }}>
-      <p style={{ margin: 0, color: "#93c5fd", fontSize: "0.82rem" }}>{label}</p>
+      <p style={{ margin: 0, color: "#A14A2F", fontSize: "0.82rem" }}>{label}</p>
       <strong style={{ fontSize: "1.15rem" }}>{value}</strong>
     </motion.article>
   );
@@ -782,7 +782,7 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label style={{ display: "grid", gap: 6 }}>
-      <span style={{ color: "#bfdbfe", fontSize: "0.85rem" }}>{label}</span>
+      <span style={{ color: "#A14A2F", fontSize: "0.85rem" }}>{label}</span>
       {children}
     </label>
   );
@@ -884,14 +884,14 @@ function MultiSelectChips({
 const shellStyle: CSSProperties = {
   minHeight: "100vh",
   display: "flex",
-  background: "#020617",
-  color: "#e2e8f0",
+  background: "#FFFFFF",
+  color: "#3D322D",
 };
 
 const sidebarStyle: CSSProperties = {
   width: 220,
-  borderRight: "1px solid #1e293b",
-  background: "#020617",
+  borderRight: "1px solid #E5DED1",
+  background: "#FFFFFF",
   padding: 20,
 };
 
@@ -904,7 +904,7 @@ const sideItemStyle: CSSProperties = {
   width: "100%",
   border: "1px solid transparent",
   textAlign: "left",
-  color: "#cbd5e1",
+  color: "#5B4F49",
   background: "transparent",
   padding: "10px 12px",
   borderRadius: 8,
@@ -925,10 +925,10 @@ const navbarStyle: CSSProperties = {
   alignItems: "center",
   gap: 12,
   flexWrap: "wrap",
-  border: "1px solid #334155",
+  border: "1px solid #D8D2C6",
   borderRadius: 14,
   padding: "16px 18px",
-  background: "rgba(15, 23, 42, 0.65)",
+  background: "#FAF9F5",
   marginBottom: 18,
 };
 
@@ -942,9 +942,9 @@ const menuRowStyle: CSSProperties = {
 const tabBtnStyle: CSSProperties = {
   ...({
     textAlign: "left",
-    background: "#0f172a",
-    border: "1px solid #1e293b",
-    color: "#e2e8f0",
+    background: "#F4F3EE",
+    border: "1px solid #E5DED1",
+    color: "#3D322D",
     borderRadius: 10,
     padding: "8px 12px",
     cursor: "pointer",
@@ -953,13 +953,13 @@ const tabBtnStyle: CSSProperties = {
 
 const tabBtnActiveStyle: CSSProperties = {
   borderColor: "#3b82f6",
-  background: "rgba(59, 130, 246, 0.16)",
+  background: "rgba(193,95,60,0.14)",
 };
 
 const backBtnStyle: CSSProperties = {
   background: "transparent",
-  color: "#93c5fd",
-  border: "1px solid #334155",
+  color: "#A14A2F",
+  border: "1px solid #D8D2C6",
   borderRadius: 8,
   padding: "6px 10px",
   cursor: "pointer",
@@ -971,9 +971,9 @@ const navActionsStyle: CSSProperties = {
 };
 
 const navBtnStyle: CSSProperties = {
-  background: "#0f172a",
-  color: "#e2e8f0",
-  border: "1px solid #334155",
+  background: "#F4F3EE",
+  color: "#3D322D",
+  border: "1px solid #D8D2C6",
   borderRadius: 8,
   padding: "8px 10px",
   cursor: "pointer",
@@ -987,20 +987,20 @@ const kpiGridStyle: CSSProperties = {
 };
 
 const kpiCardStyle: CSSProperties = {
-  border: "1px solid #334155",
+  border: "1px solid #D8D2C6",
   borderRadius: 12,
-  background: "rgba(15, 23, 42, 0.72)",
+  background: "#FAF9F5",
   padding: 12,
   display: "grid",
   gap: 8,
 };
 
 const panelStyle: CSSProperties = {
-  border: "1px solid #334155",
+  border: "1px solid #D8D2C6",
   borderRadius: 14,
   padding: 18,
   marginBottom: 18,
-  background: "rgba(15, 23, 42, 0.72)",
+  background: "#FAF9F5",
 };
 
 const sectionTitle: CSSProperties = {
@@ -1017,8 +1017,8 @@ const gridStyle: CSSProperties = {
 const inputStyle: CSSProperties = {
   width: "100%",
   minHeight: 42,
-  background: "#0b1222",
-  color: "#e2e8f0",
+  background: "#FAF9F5",
+  color: "#3D322D",
   border: "1px solid #475569",
   borderRadius: 10,
   padding: "10px 12px",
@@ -1035,15 +1035,15 @@ const submitStyle: CSSProperties = {
   border: "none",
   borderRadius: 10,
   padding: "10px 16px",
-  background: "linear-gradient(90deg, #2563eb, #7c3aed)",
+  background: "#C15F3C",
   color: "white",
   cursor: "pointer",
 };
 
 const queryStyle: CSSProperties = {
   display: "block",
-  background: "#020617",
-  border: "1px solid #334155",
+  background: "#FFFFFF",
+  border: "1px solid #D8D2C6",
   borderRadius: 10,
   padding: 10,
   color: "#7dd3fc",
@@ -1055,20 +1055,20 @@ const trackerBarWrapStyle: CSSProperties = {
   height: 10,
   borderRadius: 999,
   overflow: "hidden",
-  border: "1px solid #334155",
-  background: "#020617",
+  border: "1px solid #D8D2C6",
+  background: "#FFFFFF",
 };
 
 const trackerBarFillStyle: CSSProperties = {
   height: "100%",
   borderRadius: 999,
-  background: "linear-gradient(90deg,#22c55e,#3b82f6)",
+  background: "#C4A584",
   transition: "width 220ms ease",
 };
 
 const tableWrapStyle: CSSProperties = {
   overflowX: "auto",
-  border: "1px solid #334155",
+  border: "1px solid #D8D2C6",
   borderRadius: 12,
 };
 
@@ -1081,17 +1081,17 @@ const tableStyle: CSSProperties = {
 const tableHeadCellStyle: CSSProperties = {
   textAlign: "left",
   padding: "10px 8px",
-  borderBottom: "1px solid #334155",
-  color: "#bfdbfe",
-  background: "#0b1222",
+  borderBottom: "1px solid #D8D2C6",
+  color: "#A14A2F",
+  background: "#FAF9F5",
   position: "sticky",
   top: 0,
 };
 
 const tableCellStyle: CSSProperties = {
   padding: "8px",
-  borderBottom: "1px solid #1e293b",
-  color: "#cbd5e1",
+  borderBottom: "1px solid #E5DED1",
+  color: "#5B4F49",
   verticalAlign: "top",
   wordBreak: "break-word",
   maxWidth: 360,
@@ -1099,19 +1099,19 @@ const tableCellStyle: CSSProperties = {
 
 const metaStyle: CSSProperties = {
   margin: "4px 0",
-  color: "#cbd5e1",
+  color: "#5B4F49",
 };
 
 const emptyTextStyle: CSSProperties = {
   margin: "6px 0 0",
-  color: "#93c5fd",
+  color: "#A14A2F",
 };
 
 const savedRowStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   gap: 10,
-  border: "1px solid #334155",
+  border: "1px solid #D8D2C6",
   borderRadius: 10,
   padding: 12,
   marginBottom: 10,
@@ -1120,8 +1120,8 @@ const savedRowStyle: CSSProperties = {
 const chipInputWrapStyle: CSSProperties = {
   width: "100%",
   minHeight: 42,
-  background: "#0b1222",
-  color: "#e2e8f0",
+  background: "#FAF9F5",
+  color: "#3D322D",
   border: "1px solid #475569",
   borderRadius: 10,
   padding: 8,
@@ -1141,15 +1141,15 @@ const chipStyle: CSSProperties = {
   gap: 6,
   padding: "4px 8px",
   borderRadius: 999,
-  background: "rgba(59, 130, 246, 0.2)",
-  color: "#bfdbfe",
+  background: "#E9D8CF",
+  color: "#A14A2F",
   fontSize: "0.8rem",
 };
 
 const chipCloseStyle: CSSProperties = {
   border: "none",
   background: "transparent",
-  color: "#93c5fd",
+  color: "#A14A2F",
   cursor: "pointer",
   lineHeight: 1,
   padding: 0,
@@ -1159,7 +1159,7 @@ const chipInputStyle: CSSProperties = {
   border: "none",
   outline: "none",
   background: "transparent",
-  color: "#e2e8f0",
+  color: "#3D322D",
   fontSize: "0.9rem",
   width: "100%",
 };
@@ -1169,16 +1169,16 @@ const chipWrapStyle: CSSProperties = {
   flexWrap: "wrap",
   gap: 10,
   minHeight: 42,
-  background: "#0b1222",
+  background: "#FAF9F5",
   border: "1px solid #475569",
   borderRadius: 10,
   padding: 8,
 };
 
 const chipSelectorStyle: CSSProperties = {
-  border: "1px solid #334155",
-  background: "#020617",
-  color: "#cbd5e1",
+  border: "1px solid #D8D2C6",
+  background: "#FFFFFF",
+  color: "#5B4F49",
   borderRadius: 999,
   padding: "6px 14px",
   cursor: "pointer",
@@ -1187,6 +1187,6 @@ const chipSelectorStyle: CSSProperties = {
 const chipSelectorActiveStyle: CSSProperties = {
   border: "none",
   color: "white",
-  background: "linear-gradient(90deg,#2563eb,#7c3aed)",
-  boxShadow: "0 0 12px rgba(99,102,241,0.5)",
+  background: "#C15F3C",
+  boxShadow: "0 0 12px rgba(193,95,60,0.3)",
 };

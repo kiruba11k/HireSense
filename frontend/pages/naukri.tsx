@@ -17,9 +17,9 @@ export default function NaukriPage() {
           rel="stylesheet"
         />
       </Head>
-      <main style={{ minHeight: "100vh", background: "#0F172A" }}>
+      <main style={{ minHeight: "100vh", background: "#F4F3EE", color: "#3D322D" }}>
         <div className="container pt-4">
-          <button type="button" onClick={goToDashboard} className="btn btn-outline-light btn-sm">
+          <button type="button" onClick={goToDashboard} className="btn btn-sm" style={{ borderColor: "#C15F3C", color: "#A14A2F" }}>
             ← Back to Main Dashboard
           </button>
         </div>

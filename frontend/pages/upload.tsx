@@ -213,26 +213,26 @@ export default function UploadPage() {
       <Script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" strategy="afterInteractive" />
 
       <style jsx global>{`
-        body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: Inter, system-ui, sans-serif; }
+        body { margin: 0; background: #F4F3EE; color: #3D322D; font-family: Inter, system-ui, sans-serif; }
         .intent-shell { min-height: 100vh; padding: 2rem 0 3rem; position: relative; overflow: hidden; }
-        .intent-shell::before { content: ""; position: absolute; inset: -20% -5% auto; height: 420px; background: radial-gradient(circle at 30% 40%, rgba(99,102,241,.45), rgba(6,182,212,.18), transparent 70%); animation: float-bg 9s ease-in-out infinite alternate; pointer-events: none; }
+        .intent-shell::before { content: ""; position: absolute; inset: -20% -5% auto; height: 420px; background: radial-gradient(circle at 30% 40%, rgba(193,95,60,.18), rgba(177,173,161,.16), transparent 70%); animation: float-bg 9s ease-in-out infinite alternate; pointer-events: none; }
         @keyframes float-bg { from { transform: translateY(0) scale(1); } to { transform: translateY(14px) scale(1.05); } }
-        .glass-card { background: rgba(255,255,255,.1); backdrop-filter: blur(12px); border: 1px solid rgba(148,163,184,.25); border-radius: 16px; box-shadow: 0 18px 40px rgba(15,23,42,.35); }
+        .glass-card { background: #FAF9F5; border: 1px solid #D8D2C6; border-radius: 16px; box-shadow: 0 8px 24px rgba(61,50,45,.1); }
         .hero-title { font-size: clamp(2rem,3vw,3rem); font-weight: 700; margin-bottom: .6rem; }
-        .btn-gradient { background: linear-gradient(90deg,#6366F1 0%,#06B6D4 100%); color: white; border: none; }
+        .btn-gradient { background: #C15F3C; color: white; border: none; }
         .btn-gradient:hover { color: white; }
         .score-pill,.category-tag { border-radius: 999px; padding: .2rem .6rem; font-size: .76rem; font-weight: 600; display: inline-flex; margin-right: .35rem; margin-top: .35rem; }
-        .score-low { background: rgba(107,114,128,.35); color: #e5e7eb; } .score-medium { background: rgba(249,115,22,.25); color: #fed7aa; } .score-high { background: rgba(34,197,94,.25); color: #bbf7d0; }
-        .tag-erp { background: rgba(99,102,241,.25); } .tag-cloud { background: rgba(14,165,233,.25); } .tag-data { background: rgba(59,130,246,.25); }
-        .tag-security { background: rgba(220,38,38,.25); } .tag-qa { background: rgba(249,115,22,.25); } .tag-ai { background: rgba(168,85,247,.25); }
-        .drop-zone { border: 1.5px dashed rgba(148,163,184,.6); border-radius: 14px; padding: 2rem 1rem; text-align: center; background: rgba(15,23,42,.45); }
-        .reason-box { margin-top: .55rem; background: rgba(15,23,42,.55); border: 1px solid rgba(148,163,184,.22); border-radius: 12px; padding: .75rem; color: #cbd5e1; font-size: .92rem; }
+        .score-low { background: #e7e0d7; color: #6f6259; } .score-medium { background: #f4decf; color: #a14a2f; } .score-high { background: #dfe9d2; color: #5f7444; }
+        .tag-erp { background: #ead7cf; } .tag-cloud { background: #e9e4da; } .tag-data { background: #dfd8cd; }
+        .tag-security { background: #f0d7cf; } .tag-qa { background: #f4decf; } .tag-ai { background: #e9dfd8; }
+        .drop-zone { border: 1.5px dashed #B1ADA1; border-radius: 14px; padding: 2rem 1rem; text-align: center; background: #F4F3EE; }
+        .reason-box { margin-top: .55rem; background: #F4F3EE; border: 1px solid #D8D2C6; border-radius: 12px; padding: .75rem; color: #5b4f49; font-size: .92rem; }
       `}</style>
 
       <main className="intent-shell">
         <div className="container position-relative" style={{ zIndex: 2 }}>
           <div className="mb-3">
-            <button type="button" onClick={backToDashboard} className="btn btn-outline-light btn-sm">
+            <button type="button" onClick={backToDashboard} className="btn btn-sm" style={{ borderColor: "#C15F3C", color: "#A14A2F" }}>
               ← Back to Main Dashboard
             </button>
           </div>
@@ -253,7 +253,7 @@ export default function UploadPage() {
                 <div className="col-md-6"><label className="form-label">Job Title</label><input className="form-control" value={form.job_title} onChange={(e) => setForm((p) => ({ ...p, job_title: e.target.value }))} /></div>
                 <div className="col-12"><label className="form-label">Job Description</label><textarea className="form-control" rows={6} value={form.job_description} onChange={(e) => setForm((p) => ({ ...p, job_description: e.target.value }))} /></div>
                 <div className="col-md-4"><label className="form-label">Historical Job Count</label><input type="number" min={0} className="form-control" value={form.historical_job_count} onChange={(e) => setForm((p) => ({ ...p, historical_job_count: Number(e.target.value || 0) }))} /></div>
-                <div className="col-12 d-flex gap-2 pt-1"><motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-gradient" type="submit" disabled={loading}>Analyze Intent</motion.button><button type="button" className="btn btn-outline-light" onClick={resetAll}>Reset</button></div>
+                <div className="col-12 d-flex gap-2 pt-1"><motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn btn-gradient" type="submit" disabled={loading}>Analyze Intent</motion.button><button type="button" className="btn" style={{ borderColor: "#B1ADA1", color: "#5b4f49" }} onClick={resetAll}>Reset</button></div>
               </form>
             ) : (
               <div>
@@ -275,7 +275,7 @@ export default function UploadPage() {
           {!!results.length && <section className="row g-3">
             <div className="col-12"><div className="glass-card p-3 p-md-4"><h5 className="mb-3">Intent Score Chart</h5><canvas ref={chartRef} height={120} /></div></div>
             {results.map((item, idx) => <div key={`${item.company_name}-${idx}`} className="col-12 col-md-6 col-xl-4"><motion.article className="glass-card p-3 h-100" initial={{ opacity: 0, y: 18, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: idx * .05 }} whileHover={{ y: -4 }}><div className="d-flex justify-content-between gap-2"><h6 className="mb-1">{item.company_name}</h6><span className={`score-pill ${scoreClass[item.intent_score]}`}>{item.intent_score}</span></div><p className="mb-1 small text-info">Intent Type: {item.intent_type}</p><div className="mb-2">{(item.intent_categories.length ? item.intent_categories : ["Unknown"]).map((category) => <span key={category} className={`category-tag ${categoryColors[category] || "tag-erp"}`}>{category}</span>)}</div><div className="reason-box"><strong>Reasoning:</strong> {item.reasoning}</div></motion.article></div>)}
-            <div className="col-12"><div className="glass-card p-3 table-responsive"><h5 className="mb-3">Batch Result Table</h5><table className="table table-dark table-hover mb-0"><thead><tr><th>Company</th><th>Categories</th><th>Type</th><th>Score</th></tr></thead><tbody>{results.map((item, i) => <tr key={`${item.company_name}-result-${i}`}><td>{item.company_name}</td><td>{item.intent_categories.join(", ") || "Unknown"}</td><td>{item.intent_type}</td><td>{item.intent_score}</td></tr>)}</tbody></table></div></div>
+            <div className="col-12"><div className="glass-card p-3 table-responsive"><h5 className="mb-3">Batch Result Table</h5><table className="table table-hover mb-0"><thead><tr><th>Company</th><th>Categories</th><th>Type</th><th>Score</th></tr></thead><tbody>{results.map((item, i) => <tr key={`${item.company_name}-result-${i}`}><td>{item.company_name}</td><td>{item.intent_categories.join(", ") || "Unknown"}</td><td>{item.intent_type}</td><td>{item.intent_score}</td></tr>)}</tbody></table></div></div>
           </section>}
         </div>
       </main>
