@@ -189,6 +189,15 @@ class LinkedInSearchRequest(BaseModel):
         return actor_input
 
 
+class LinkedInErpAnalyzeRequest(BaseModel):
+    keyword: str = Field(min_length=1)
+    location: str = Field(min_length=1)
+    window: LinkedInWindow = LinkedInWindow.last_7d
+    limit: int = Field(default=25, ge=10, le=25)
+    offset: int = Field(default=0, ge=0)
+    pages_to_scrape: int = Field(default=1, ge=1, le=20)
+
+
 class JobSearchInput(BaseModel):
     keywords: list[str] = Field(default_factory=lambda: ["ERP", "SAP", "Cloud", "QA", "Data", "AI"])
     locations: list[str] = Field(default_factory=list)

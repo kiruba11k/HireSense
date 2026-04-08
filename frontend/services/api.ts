@@ -105,6 +105,13 @@ export type LinkedInSearchPayload = {
   extra_query_params?: Record<string, string | number | boolean>;
 };
 
+export type LinkedInErpAnalyzePayload = {
+  keyword: string;
+  location: string;
+  window?: LinkedInWindow;
+  pages_to_scrape: number;
+};
+
 export type JobSearchPayload = {
   keywords: string[];
   locations: string[];
@@ -237,6 +244,31 @@ export const exportLinkedInJobsCsv = async (payload: LinkedInSearchPayload, fall
   if (!res.ok) {
     const errorBody = await res.text();
     throw new Error(errorBody || "LinkedIn CSV export failed");
+  }
+
+  return res.blob();
+};
+
+export const exportLinkedInErpAnalyzedCsv = async (payload: LinkedInErpAnalyzePayload, fallbackBase?: string) => {
+  const apiBase = resolveApiBase(fallbackBase);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/linkedin/jobs/erp-analyzed-csv`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error(
+      `Unable to reach backend at ${apiBase}. Start the API server and set NEXT_PUBLIC_API_URL if needed.`
+    );
+  }
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    throw new Error(errorBody || "LinkedIn ERP analyzed CSV export failed");
   }
 
   return res.blob();
